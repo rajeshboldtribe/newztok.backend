@@ -36,6 +36,14 @@ const News = sequelize.define('news', {
             key: 'id'
         }
     },
+    state: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    district: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
     contentType: {
         type: DataTypes.ENUM('standard', 'video'),
         allowNull: false,

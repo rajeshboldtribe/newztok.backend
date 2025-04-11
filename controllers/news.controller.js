@@ -44,7 +44,7 @@ const upload = multer({
     }
 });
 
-// Create new news post (for journalists)
+// Create new news post (for journalists,editor)
 
 newsController.createNews = async (req, res) => {
     try {
@@ -66,7 +66,7 @@ newsController.createNews = async (req, res) => {
             
             try {
                 // Extract values from request body and clean them
-                let { title, content, category, contentType, youtubeUrl } = req.body;
+                let { title, content, category, contentType, youtubeUrl, state, district } = req.body;
                 
                 // Remove any surrounding quotes from string values
                 title = title ? title.replace(/^["'](.*)["']$/, '$1') : title;
@@ -74,10 +74,12 @@ newsController.createNews = async (req, res) => {
                 category = category ? category.replace(/^["'](.*)["']$/, '$1') : category;
                 contentType = contentType ? contentType.replace(/^["'](.*)["']$/, '$1') : contentType;
                 youtubeUrl = youtubeUrl ? youtubeUrl.replace(/^["'](.*)["']$/, '$1') : youtubeUrl;
+                state = state ? state.replace(/^["'](.*)["']$/, '$1') : state;
+                district = district ? district.replace(/^["'](.*)["']$/, '$1') : district;
                 
                 const journalistId = req.mwValue.auth.id;
                 
-                console.log('Cleaned request body:', { title, content, category, contentType, youtubeUrl });
+                console.log('Cleaned request body:', { title, content, category, contentType, youtubeUrl, state, district });
                 console.log('Files:', req.files);
                 
                 // Create news object with common fields
@@ -87,7 +89,9 @@ newsController.createNews = async (req, res) => {
                     category,
                     journalistId,
                     status: 'pending',
-                    contentType: contentType || 'standard'
+                    contentType: contentType || 'standard',
+                    state: state || null,
+                    district: district || null
                 };
                 
                 // Handle content type specific fields
@@ -630,7 +634,7 @@ newsController.getEditorApprovedNews = async (req, res) => {
 
 
 
-// Add this new method to the newsController object
+// Update the updateNews method to include state and district
 newsController.updateNews = async (req, res) => {
     try {
         const { newsId } = req.params;
@@ -679,7 +683,7 @@ newsController.updateNews = async (req, res) => {
             
             try {
                 // Extract values from request body and clean them
-                let { title, content, category, contentType, youtubeUrl } = req.body;
+                let { title, content, category, contentType, youtubeUrl, state, district } = req.body;
                 
                 // Remove any surrounding quotes from string values
                 title = title ? title.replace(/^["'](.*)["']$/, '$1') : title;
@@ -687,6 +691,8 @@ newsController.updateNews = async (req, res) => {
                 category = category ? category.replace(/^["'](.*)["']$/, '$1') : category;
                 contentType = contentType ? contentType.replace(/^["'](.*)["']$/, '$1') : contentType;
                 youtubeUrl = youtubeUrl ? youtubeUrl.replace(/^["'](.*)["']$/, '$1') : youtubeUrl;
+                state = state ? state.replace(/^["'](.*)["']$/, '$1') : state;
+                district = district ? district.replace(/^["'](.*)["']$/, '$1') : district;
                 
                 // Create news object with updated fields
                 const newsData = {
@@ -694,6 +700,8 @@ newsController.updateNews = async (req, res) => {
                     content: content || news.content,
                     category: category || news.category,
                     contentType: contentType || news.contentType,
+                    state: state !== undefined ? state : news.state,
+                    district: district !== undefined ? district : news.district,
                     status: 'pending' // Reset to pending since it's been edited
                 };
                 

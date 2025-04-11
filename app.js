@@ -11,6 +11,7 @@ const seedSuperAdmin=require('./seeders/superAdminSeeder');
 const interactionRoutes=require('./routes/interaction.routes');
 const userController = require("./controllers/user.controller");
 const userRoutes=require('./routes/user.routes');
+const versionRoutes = require('./routes/version.routes');
 const cors=require('cors');
 const path = require('path');
 
@@ -18,7 +19,7 @@ const app = express();
 const port = process.env.APP_PORT;
 const baseUrl = process.env.BASE_URL;
 
-// Update CORS configuration to be more specific
+// CORS configuration 
 app.use(cors({
   origin: '*', // Allow all origins, or specify allowed origins
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -39,6 +40,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/news',newsRoutes);
 app.use('/api/interaction',interactionRoutes);
 app.use('/api/users',userRoutes);
+app.use('/api/versions',versionRoutes);
 app.use(handleNotFound);
 app.use(errorHandler);
 
