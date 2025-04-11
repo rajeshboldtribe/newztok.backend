@@ -262,8 +262,93 @@ authController.register = async (req, res) => {
         );
     }
 };
-//login part......................
+
+//login for all(except audience).....................
 authController.login = async (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.error(
+            httpStatus.BAD_REQUEST,
+            false,
+            "Username and password are required"
+        );
+    }
+
+    try {
+        const user = await User.findOne({ 
+            where: { 
+                username,
+                role: {
+                    [Op.in]: ['super_admin', 'admin', 'editor', 'journalist']
+                }
+            },
+            attributes: ['id', 'username', 'email', 'password', 'role', 'status'] 
+        });
+
+        if (!user) {
+            return res.error(
+                httpStatus.UNAUTHORIZED,
+                false,
+                "Invalid username or password"
+            );
+        }
+
+        // Check if user is active
+        if (user.status !== 'active') {
+            return res.error(
+                httpStatus.FORBIDDEN,
+                false,
+                "Your account is not active. Please contact administrator."
+            );
+        }
+
+        // Verify password
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        
+        if (!isValidPassword) {
+            return res.error(
+                httpStatus.UNAUTHORIZED,
+                false,
+                "Invalid username or password"
+            );
+        }
+
+        // Generate JWT token
+        const token = jwt.sign(
+            { 
+                id: user.id, 
+                username: user.username, 
+                role: user.role 
+            },
+            process.env.APP_SUPER_SECRET_KEY,
+            { expiresIn: '24h' }
+        );
+
+        return res.success(
+            httpStatus.OK,
+            true,
+            "Login successful",
+            { 
+                user: user.username, 
+                role: user.role,
+                token: token 
+            }
+        );
+
+    } catch (error) {
+        console.error('Login error:', error);
+        return res.error(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            false,
+            "Internal server error",
+            error
+        );
+    }
+};
+
+//login part(only for audience)......................
+authController.loginAudience = async (req, res) => {
     const { mobile, password } = req.body;
 
     if (!mobile || !password) {

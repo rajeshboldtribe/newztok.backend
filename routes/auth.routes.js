@@ -9,11 +9,12 @@ router.post('/create-editor', checkUserAuth, checkRole('admin'), authController.
 
 // Editor routes
 router.post('/create-journalist', checkUserAuth, checkRole('editor'), authController.createJournalist);
-
+//login same for all except audience
+router.post('/login',authController.login);
 
 //public route
+router.post('/login/audience',authController.loginAudience);
 router.post('/register',authController.register);
-router.post('/login',authController.login);
 router.get('/profile', checkUserAuth, authController.getUserProfile);
 router.put('/profile', checkUserAuth, authController.updateUserProfile);
 //same for all user put the token of user in bearer token and that will be logout
