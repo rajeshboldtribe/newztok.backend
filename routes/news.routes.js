@@ -23,4 +23,9 @@ router.put('/featured/:newsId', checkUserAuth, checkRole('editor'), newsControll
 router.get('/featured', newsController.getFeaturedNews);
 //trending news route
 router.get('/trending',newsController.getTrendingNews);
+
+//state news route
+router.get('/state/:state',newsController.getNewsByState);
+// Delete news route (for editors and admins)
+router.delete('/:newsId', checkUserAuth, checkRole(['editor', 'admin']), newsController.deleteNews);
 module.exports = router;

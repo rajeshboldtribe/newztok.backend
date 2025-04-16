@@ -936,3 +936,154 @@ newsController.getFeaturedNews = async (req, res) => {
         );
     }
 };
+
+
+// Get news by state
+newsController.getNewsByState = async (req, res) => {
+    try {
+        const { state } = req.params;
+        
+        if (!state) {
+            return res.error(
+                httpStatus.BAD_REQUEST,
+                false,
+                "State parameter is required"
+            );
+        }
+
+        const news = await News.findAll({
+            where: { 
+                status: 'approved',
+                state: state
+            },
+            include: [
+                {
+                    model: User,
+                    as: 'journalist',
+                    attributes: ['id', 'username']
+                },
+                {
+                    model: User,
+                    as: 'editor',
+                    attributes: ['id', 'username']
+                }
+            ],
+            attributes: [
+                'id', 'title', 'content', 'category', 'status',
+                'contentType', 'youtubeUrl', 'videoPath',
+                'featuredImage', 'thumbnailUrl', 'views', 'state', 'district',
+                'createdAt', 'updatedAt',
+                [sequelize.literal('(SELECT COUNT(*) FROM likes WHERE likes.newsId = news.id)'), 'likesCount'],
+                [sequelize.literal('(SELECT COUNT(*) FROM comments WHERE comments.newsId = news.id)'), 'commentsCount'],
+                [sequelize.literal('(SELECT COUNT(*) FROM shares WHERE shares.newsId = news.id)'), 'sharesCount']
+            ],
+            order: [['createdAt', 'DESC']]
+        });
+        
+        return res.success(
+            httpStatus.OK,
+            true,
+            `News from ${state} fetched successfully`,
+            news
+        );
+    } catch (error) {
+        console.error('Fetch state news error:', error);
+        return res.error(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            false,
+            "Error fetching news by state",
+            error.message
+        );
+    }
+};
+
+// Delete news (for editors and admins only)
+newsController.deleteNews = async (req, res) => {
+    try {
+        const { newsId } = req.params;
+        const userId = req.mwValue.auth.id;
+        const userRole = req.mwValue.auth.role;
+        
+        
+        const news = await News.findByPk(newsId);
+        
+        if (!news) {
+            return res.error(
+                httpStatus.NOT_FOUND,
+                false,
+                "News article not found"
+            );
+        }
+        
+        // Only editors who approved the news or admins can delete
+        if (userRole !== 'admin' && (userRole !== 'editor' || news.editorId !== userId)) {
+            return res.error(
+                httpStatus.FORBIDDEN,
+                false,
+                "You don't have permission to delete this news article"
+            );
+        }
+        
+        // Delete associated files 
+        try {
+            // Delete featured image 
+            if (news.featuredImage && news.featuredImage !== '/uploads/images/default.jpg') {
+                const imagePath = path.join(__dirname, '..', news.featuredImage);
+                if (fs.existsSync(imagePath)) {
+                    fs.unlinkSync(imagePath);
+                }
+            }
+            
+            // Delete video if exists
+            if (news.videoPath) {
+                const videoPath = path.join(__dirname, '..', news.videoPath);
+                if (fs.existsSync(videoPath)) {
+                    fs.unlinkSync(videoPath);
+                }
+            }
+        } catch (fileError) {
+            console.error('Error deleting files:', fileError);
+            // Continue with news deletion even if file deletion fails
+        }
+        
+        // Delete the news article
+        await news.destroy();
+        
+        // Send notification to the journalist if an editor deleted their article
+        try {
+            if (userRole === 'editor' && news.journalistId) {
+                const editor = await User.findByPk(userId, {
+                    attributes: ['username']
+                });
+                
+                await notificationService.sendToUsers([news.journalistId], 
+                    'Article Deleted', 
+                    `Editor ${editor.username} has deleted your article: "${news.title}"`,
+                    {
+                        type: 'article_deleted',
+                        newsId: newsId
+                    }
+                );
+            }
+        } catch (notifError) {
+            // Continue execution even if notification fails
+            console.error('Notification error:', notifError);
+        }
+        
+        return res.success(
+            httpStatus.OK,
+            true,
+            "News article deleted successfully"
+        );
+    } catch (error) {
+        console.error('Delete news error:', error);
+        return res.error(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            false,
+            "Error deleting news article",
+            error.message
+        );
+    }
+};
+
+module.exports=newsController;
