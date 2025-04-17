@@ -415,7 +415,7 @@ newsController.getMyRejectedNews = async (req, res) => {
 newsController.updateNewsStatus = async (req, res) => {
     try {
         const { newsId } = req.params;
-        const { status } = req.body; // status can be 'approved' or 'rejected'
+        const { status } = req.body; // status can be approved or rejected
         const editorId = req.user.id;
 
         if (!['approved', 'rejected'].includes(status)) {
@@ -1081,6 +1081,54 @@ newsController.deleteNews = async (req, res) => {
             httpStatus.INTERNAL_SERVER_ERROR,
             false,
             "Error deleting news article",
+            error.message
+        );
+    }
+};
+
+// Increment view count for a news 
+newsController.incrementViewCount = async (req, res) => {
+    try {
+        const { newsId } = req.params;
+        
+        // Find the news article
+        const news = await News.findByPk(newsId);
+        
+        if (!news) {
+            return res.error(
+                httpStatus.NOT_FOUND,
+                false,
+                "News article not found"
+            );
+        }
+        
+        // Check news is approved (only count views for approved news)
+        if (news.status !== 'approved') {
+            return res.error(
+                httpStatus.BAD_REQUEST,
+                false,
+                "Cannot count views for non-approved news"
+            );
+        }
+        
+        // Increment the view count
+        await news.increment('views', { by: 1 });
+        
+        // Reload to get the updated view 
+        await news.reload();
+        
+        return res.success(
+            httpStatus.OK,
+            true,
+            "View count increament successfully",
+            { views: news.views }
+        );
+    } catch (error) {
+        console.error('View count increment error:', error);
+        return res.error(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            false,
+            "Error incrementing view count",
             error.message
         );
     }

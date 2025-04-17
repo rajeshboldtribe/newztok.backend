@@ -11,5 +11,11 @@ router.get('/news/:newsId/comments', interactionController.getComments);
 
 // Share routes
 router.post('/news/:newsId/share', checkUserAuth, interactionController.shareNews);
+//all interaction routes
 router.get('/news/:newsId/stats', interactionController.getPostStats);
+
+//save a video 
+router.post('/save/:newsId', checkUserAuth, interactionController.toggleSave);
+router.get('/saved', checkUserAuth, interactionController.getSavedNews);
+router.get('/save/check/:newsId', checkUserAuth, interactionController.checkSaved);
 module.exports = router;

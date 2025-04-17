@@ -1,5 +1,6 @@
-const { Like, Comment, Share, News, User } = require('../models');
+const { Like, Comment, Share, News, User,Saved } = require('../models');
 const httpStatus = require('../enums/httpStatusCode.enum');
+const { where } = require('sequelize');
 
 const interactionController = {};
 
@@ -114,13 +115,15 @@ interactionController.getPostStats = async (req, res) => {
         const stats = await Promise.all([
             Like.count({ where: { newsId } }),
             Comment.count({ where: { newsId } }),
-            Share.count({ where: { newsId } })
+            Share.count({ where: { newsId } }),
+            
         ]);
 
         const postStats = {
             likes: stats[0],
             comments: stats[1],
-            shares: stats[2]
+            shares: stats[2],
+            views: news.views 
         };
 
         return res.success(httpStatus.OK, true, "Post statistics fetched successfully", postStats);
@@ -129,4 +132,158 @@ interactionController.getPostStats = async (req, res) => {
         return res.error(httpStatus.INTERNAL_SERVER_ERROR, false, "Error fetching post statistics", error);
     }
 };
+
+//saved video status...................................
+
+// Toggle save status (save/unsave)
+interactionController.toggleSave = async (req, res) => {
+    try {
+        const { newsId } = req.params;
+        const userId = req.mwValue.auth.id;
+        
+        // Check if the news exists and is approved
+        const news = await News.findOne({
+            where: {
+                id: newsId,
+                status: 'approved'
+            }
+        });
+        
+        if (!news) {
+            return res.error(
+                httpStatus.NOT_FOUND,
+                false,
+                "News article not found or not approved"
+            );
+        }
+        
+        // Check if already saved
+        const existingSave = await Saved.findOne({
+            where: {
+                userId,
+                newsId
+            }
+        });
+        
+        let result;
+        let message;
+        
+        if (existingSave) {
+            // Unsave if already saved
+            await existingSave.destroy();
+            result = { saved: false };
+            message = "News article unsaved successfully";
+        } else {
+            // Save if not already saved
+            await Saved.create({
+                userId,
+                newsId
+            });
+            result = { saved: true };
+            message = "News article saved successfully";
+        }
+        
+        return res.success(
+            httpStatus.OK,
+            true,
+            message,
+            result
+        );
+    } catch (error) {
+        console.error('Toggle save error:', error);
+        return res.error(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            false,
+            "Error toggling save status",
+            error.message
+        );
+    }
+};
+
+// Get all saved news for a user
+interactionController.getSavedNews = async (req, res) => {
+    try {
+        const userId = req.mwValue.auth.id;
+        
+        const savedNews = await Saved.findAll({
+            where: {
+                userId
+            },
+            include: [
+                {
+                    model: News,
+                    include: [
+                        {
+                            model: User,
+                            as: 'journalist',
+                            attributes: ['id', 'username']
+                        },
+                        {
+                            model: User,
+                            as: 'editor',
+                            attributes: ['id', 'username']
+                        }
+                    ],
+                    where: {
+                        status: 'approved'
+                    }
+                }
+            ],
+            order: [['createdAt', 'DESC']]
+        });
+        
+        // Format the response to return just the news articles
+        const formattedNews = savedNews.map(item => item.news);
+        
+        return res.success(
+            httpStatus.OK,
+            true,
+            "Saved news fetched successfully",
+            formattedNews
+        );
+    } catch (error) {
+        console.error('Get saved news error:', error);
+        return res.error(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            false,
+            "Error fetching saved news",
+            error.message
+        );
+    }
+};
+
+// Check if a news article is saved by the user
+interactionController.checkSaved = async (req, res) => {
+    try {
+        const { newsId } = req.params;
+        const userId = req.mwValue.auth.id;
+        
+        const saved = await Saved.findOne({
+            where: {
+                userId,
+                newsId
+            }
+        });
+        
+        return res.success(
+            httpStatus.OK,
+            true,
+            "Save status checked successfully",
+            { saved: !!saved }
+        );
+    } catch (error) {
+        console.error('Check saved error:', error);
+        return res.error(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            false,
+            "Error checking save status",
+            error.message
+        );
+    }
+};
+
+
+
+
+
 module.exports = interactionController;

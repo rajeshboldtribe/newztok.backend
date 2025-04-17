@@ -4,6 +4,7 @@ const Like = require('./like.model');
 const Comment = require('./comment.model');
 const Share = require('./share.model');
 const Version = require('./version.model');
+const Saved=require('./saved.model');
 
 // User-News associations
 User.hasMany(News, {
@@ -90,5 +91,7 @@ module.exports = {
     Like,
     Comment,
     Share,
-    Version
+    Version,
+    Saved
+
 };

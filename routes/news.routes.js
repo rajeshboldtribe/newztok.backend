@@ -28,4 +28,9 @@ router.get('/trending',newsController.getTrendingNews);
 router.get('/state/:state',newsController.getNewsByState);
 // Delete news route (for editors and admins)
 router.delete('/:newsId', checkUserAuth, checkRole(['editor', 'admin']), newsController.deleteNews);
+//views route
+router.post('/:newsId/view', newsController.incrementViewCount);
+
+
+
 module.exports = router;
