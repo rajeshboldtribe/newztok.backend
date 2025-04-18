@@ -194,45 +194,29 @@ newsController.getMyNews = async (req, res) => {
 // Get public news (approved only)
 newsController.getPublicNews = async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const offset = (page - 1) * limit;
-
-        const news = await News.findAndCountAll({
+        const news = await News.findAll({
             where: { status: 'approved' },
             include: [
                 {
                     model: User,
                     as: 'journalist',
-                    attributes: ['id', 'name']
+                    attributes: ['id', 'username']
                 }
             ],
             attributes: [
                 'id', 'title', 'content', 'category', 'status', 
                 'contentType', 'youtubeUrl', 'videoPath', 
-                'featuredImage', 'thumbnailUrl', 'views', // Make sure thumbnailUrl is included
+                'featuredImage', 'thumbnailUrl', 'views',
                 'createdAt', 'updatedAt'
             ],
-            order: [['createdAt', 'DESC']],
-            limit,
-            offset
+            order: [['createdAt', 'DESC']]
         });
-
-        const totalPages = Math.ceil(news.count / limit);
 
         return res.success(
             httpStatus.OK,
             true,
             "Public news fetched successfully",
-            {
-                news: news.rows,
-                pagination: {
-                    totalItems: news.count,
-                    totalPages,
-                    currentPage: page,
-                    itemsPerPage: limit
-                }
-            }
+            news
         );
     } catch (error) {
         console.error('Get public news error:', error);
@@ -244,7 +228,6 @@ newsController.getPublicNews = async (req, res) => {
         );
     }
 };
-
 // Get pending news (for editors)
 newsController.getPendingNews = async (req, res) => {
     try {
@@ -812,9 +795,6 @@ newsController.updateNews = async (req, res) => {
     }
 };
 
-module.exports=newsController;
-
-
 //  featured status (for editors only)
 newsController.FeaturedNews = async (req, res) => {
     try {
@@ -1086,52 +1066,5 @@ newsController.deleteNews = async (req, res) => {
     }
 };
 
-// Increment view count for a news 
-newsController.incrementViewCount = async (req, res) => {
-    try {
-        const { newsId } = req.params;
-        
-        // Find the news article
-        const news = await News.findByPk(newsId);
-        
-        if (!news) {
-            return res.error(
-                httpStatus.NOT_FOUND,
-                false,
-                "News article not found"
-            );
-        }
-        
-        // Check news is approved (only count views for approved news)
-        if (news.status !== 'approved') {
-            return res.error(
-                httpStatus.BAD_REQUEST,
-                false,
-                "Cannot count views for non-approved news"
-            );
-        }
-        
-        // Increment the view count
-        await news.increment('views', { by: 1 });
-        
-        // Reload to get the updated view 
-        await news.reload();
-        
-        return res.success(
-            httpStatus.OK,
-            true,
-            "View count increament successfully",
-            { views: news.views }
-        );
-    } catch (error) {
-        console.error('View count increment error:', error);
-        return res.error(
-            httpStatus.INTERNAL_SERVER_ERROR,
-            false,
-            "Error incrementing view count",
-            error.message
-        );
-    }
-};
 
 module.exports=newsController;

@@ -19,7 +19,7 @@ router.get('/pending', checkUserAuth, checkRole('editor'), newsController.getPen
 router.get('/rejected', checkUserAuth, checkRole('editor'), newsController.getRejectedNews);
 router.get('/approved-by-me', checkUserAuth, checkRole('editor'), newsController.getEditorApprovedNews);
 router.put('/:newsId/status', checkUserAuth, checkRole('editor'), newsController.updateNewsStatus);
-router.put('/featured/:newsId', checkUserAuth, checkRole('editor'), newsController.FeaturedNews);
+router.patch('/featured/:newsId', checkUserAuth, checkRole('editor'), newsController.FeaturedNews);
 router.get('/featured', newsController.getFeaturedNews);
 //trending news route
 router.get('/trending',newsController.getTrendingNews);
@@ -27,9 +27,7 @@ router.get('/trending',newsController.getTrendingNews);
 //state news route
 router.get('/state/:state',newsController.getNewsByState);
 // Delete news route (for editors and admins)
-router.delete('/:newsId', checkUserAuth, checkRole(['editor', 'admin']), newsController.deleteNews);
-//views route
-router.post('/:newsId/view', newsController.incrementViewCount);
+router.delete('/delete/:newsId', checkUserAuth, checkRole(['editor', 'admin']), newsController.deleteNews);
 
 
 

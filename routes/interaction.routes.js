@@ -18,4 +18,8 @@ router.get('/news/:newsId/stats', interactionController.getPostStats);
 router.post('/save/:newsId', checkUserAuth, interactionController.toggleSave);
 router.get('/saved', checkUserAuth, interactionController.getSavedNews);
 router.get('/save/check/:newsId', checkUserAuth, interactionController.checkSaved);
+
+//views route
+router.post('/:newsId/view', interactionController.incrementViewCount);
+
 module.exports = router;
