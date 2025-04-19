@@ -272,7 +272,7 @@ newsController.getMyPendingNews = async (req, res) => {
                 'id', 'title', 'content', 'category', 'status', 
                 'contentType', 'youtubeUrl', 'videoPath', 
                 'featuredImage', 'thumbnailUrl', 'views',
-                'createdAt', 'updatedAt'
+                'createdAt', 'updatedAt','state','district'
             ],
             order: [['createdAt', 'DESC']]
         });
@@ -321,7 +321,7 @@ newsController.getMyApprovedNews = async (req, res) => {
                 'id', 'title', 'content', 'category', 'status',
                 'contentType', 'youtubeUrl', 'videoPath',
                 'featuredImage', 'thumbnailUrl', 'views',
-                'createdAt', 'updatedAt'
+                'createdAt', 'updatedAt','state','district'
             ],
             order: [['updatedAt', 'DESC']]
         });
