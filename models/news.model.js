@@ -22,7 +22,15 @@ const News = sequelize.define('news', {
     },
     journalistId: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true, 
+        references: {
+            model: 'users',
+            key: 'id'
+        }
+    },
+    adminId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
         references: {
             model: 'users',
             key: 'id'
@@ -117,5 +125,7 @@ News.belongsTo(User, {
     foreignKey: 'featuredBy',
     as: 'featuredByEditor'
 });
+
+
 
 module.exports = News;

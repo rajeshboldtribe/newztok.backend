@@ -5,6 +5,7 @@ const Comment = require('./comment.model');
 const Share = require('./share.model');
 const Version = require('./version.model');
 const Saved=require('./saved.model');
+const Ad = require('./ad.model');
 
 // User-News associations
 User.hasMany(News, {
@@ -16,6 +17,10 @@ User.hasMany(News, {
     foreignKey: 'editorId',
     as: 'reviewedNews'
 });
+User.hasMany(News, {
+    foreignKey: 'adminId',
+    as: 'adminCreatedNews'
+});
 
 News.belongsTo(User, {
     foreignKey: 'journalistId',
@@ -24,7 +29,11 @@ News.belongsTo(User, {
 
 News.belongsTo(User, {
     foreignKey: 'editorId',
-    as: 'reviewer'  
+    as: 'editer'  
+});
+News.belongsTo(User, {
+    foreignKey: 'adminId',
+    as: 'admin'  
 });
 
 // Like associations
@@ -84,7 +93,17 @@ Share.belongsTo(User, {
     foreignKey: 'userId'
 });
 
-// Add Version to the exports
+Ad.belongsTo(User, {
+    foreignKey: 'createdBy',
+    as: 'creator'
+});
+
+User.hasMany(Ad, {
+    foreignKey: 'createdBy',
+    as: 'createdAds'
+});
+
+
 module.exports = {
     User,
     News,
@@ -92,6 +111,6 @@ module.exports = {
     Comment,
     Share,
     Version,
-    Saved
-
+    Saved,
+    Ad
 };

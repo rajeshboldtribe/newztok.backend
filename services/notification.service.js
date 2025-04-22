@@ -26,6 +26,8 @@ notificationService.sendToUsers = async (userIds, title, body, data = {}) => {
       attributes: ['id', 'fcmToken']
     });
 
+    console.log(`Found ${users.length} users with IDs:`, userIds);
+    
     // Filter out users without FCM tokens
     const tokens = users
       .filter(user => user.fcmToken)
@@ -33,8 +35,10 @@ notificationService.sendToUsers = async (userIds, title, body, data = {}) => {
 
     if (tokens.length === 0) {
       console.log('No valid FCM tokens found for the specified users');
-      return;
+      return { success: false, message: 'No valid FCM tokens found' };
     }
+
+    console.log(`Attempting to send notifications to ${tokens.length} devices`);
 
     // Prepare the message
     const message = {
@@ -43,23 +47,59 @@ notificationService.sendToUsers = async (userIds, title, body, data = {}) => {
         body
       },
       data,
-      
     };
 
-    // Send messages individually
-    const results = await Promise.all(
-      tokens.map(token => {
-        return admin.messaging().send({
+    // Send messages individually and track results
+    const results = [];
+    const invalidTokens = [];
+    
+    for (const token of tokens) {
+      try {
+        console.log(`Sending notification to token: ${token.substring(0, 10)}...`);
+        const result = await admin.messaging().send({
           ...message,
           token: token
         });
-      })
-    );
+        results.push({ token, success: true, result });
+      } catch (error) {
+        console.error(`Error sending to token ${token.substring(0, 10)}...`, error.code, error.message);
+        results.push({ token, success: false, error: error.message });
+        
+        // If token is invalid, mark it for removal
+        if (error.code === 'messaging/registration-token-not-registered') {
+          invalidTokens.push(token);
+        }
+      }
+    }
     
-    console.log(`Successfully sent ${results.length} messages out of ${tokens.length}`);
-    return results;
+    // Clean up invalid tokens from the database
+    if (invalidTokens.length > 0) {
+      console.log(`Removing ${invalidTokens.length} invalid tokens from database`);
+      await User.update(
+        { fcmToken: null },
+        { 
+          where: { 
+            fcmToken: invalidTokens 
+          } 
+        }
+      );
+    }
+    
+    const successCount = results.filter(r => r.success).length;
+    console.log(`Successfully sent ${successCount} messages out of ${tokens.length}`);
+    
+    return { 
+      success: successCount > 0, 
+      results,
+      summary: {
+        total: tokens.length,
+        successful: successCount,
+        failed: tokens.length - successCount,
+        invalidTokensRemoved: invalidTokens.length
+      }
+    };
   } catch (error) {
-    console.error('Error sending notifications:', error);
+    console.error('Error in notification service:', error);
     throw error;
   }
 };

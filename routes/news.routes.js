@@ -7,7 +7,7 @@ router.get('/public', newsController.getPublicNews);
 router.get('/category/:category', newsController.getNewsByCategory);
 
 // Journalist routes
-router.post('/create', checkUserAuth, checkRole(['journalist','editor']), newsController.createNews);
+router.post('/create', checkUserAuth, checkRole(['journalist','editor',]), newsController.createNews);
 router.get('/my-news', checkUserAuth, checkRole('journalist'), newsController.getMyNews);
 router.get('/my-pending-news', checkUserAuth, checkRole('journalist'), newsController.getMyPendingNews);
 router.get('/my-rejected-news', checkUserAuth, checkRole('journalist'), newsController.getMyRejectedNews);
@@ -28,7 +28,9 @@ router.get('/trending',newsController.getTrendingNews);
 router.get('/state/:state',newsController.getNewsByState);
 // Delete news route (for editors and admins)
 router.delete('/delete/:newsId', checkUserAuth, checkRole(['editor', 'admin']), newsController.deleteNews);
-
-
+// Admin news routes
+router.post('/admin/create', checkUserAuth, checkRole('admin'), newsController.adminCreateNews);
+router.get('/admin/pending', checkUserAuth, checkRole('admin'), newsController.getAdminPendingNews);
+router.put('/admin/approve/:newsId', checkUserAuth, checkRole('admin'), newsController.adminApproveNews);
 
 module.exports = router;

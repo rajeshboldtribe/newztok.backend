@@ -40,7 +40,7 @@ const storage = multer.diskStorage({
 const upload = multer({ 
     storage: storage,
     limits: {
-        fileSize: 50 * 1024 * 1024, // Increased to 50MB limit
+        fileSize: 50 * 1024 * 1024, //to 50MB limit
     }
 });
 
@@ -201,13 +201,23 @@ newsController.getPublicNews = async (req, res) => {
                     model: User,
                     as: 'journalist',
                     attributes: ['id', 'username']
+                },
+                {
+                    model: User,
+                    as: 'admin',
+                    attributes: ['id', 'username']
+                },
+                {
+                    model: User,
+                    as: 'editor',
+                    attributes: ['id', 'username']
                 }
             ],
             attributes: [
                 'id', 'title', 'content', 'category', 'status', 
                 'contentType', 'youtubeUrl', 'videoPath', 
                 'featuredImage', 'thumbnailUrl', 'views',
-                'createdAt', 'updatedAt'
+                'createdAt', 'updatedAt','state','district'
             ],
             order: [['createdAt', 'DESC']]
         });
@@ -1066,5 +1076,173 @@ newsController.deleteNews = async (req, res) => {
     }
 };
 
+// Admin create news
+newsController.adminCreateNews = async (req, res) => {
+    try {
+        // Use fields to handle both image and video uploads with different field names
+        const uploadFields = upload.fields([
+            { name: 'featuredImage', maxCount: 1 },
+            { name: 'video', maxCount: 1 }
+        ]);
+        
+        uploadFields(req, res, async function(err) {
+            if (err) {
+                console.error('Upload error:', err);
+                return res.error(
+                    httpStatus.BAD_REQUEST,
+                    false,
+                    "Error uploading file: " + err.message
+                );
+            }
+            
+            try {
+                // Extract values from request body and clean them
+                let { title, content, category, contentType, youtubeUrl, state, district } = req.body;
+                
+                // Remove any surrounding quotes from string values
+                title = title ? title.replace(/^["'](.*)["']$/, '$1') : title;
+                content = content ? content.replace(/^["'](.*)["']$/, '$1') : content;
+                category = category ? category.replace(/^["'](.*)["']$/, '$1') : category;
+                contentType = contentType ? contentType.replace(/^["'](.*)["']$/, '$1') : contentType;
+                youtubeUrl = youtubeUrl ? youtubeUrl.replace(/^["'](.*)["']$/, '$1') : youtubeUrl;
+                state = state ? state.replace(/^["'](.*)["']$/, '$1') : state;
+                district = district ? district.replace(/^["'](.*)["']$/, '$1') : district;
+                
+                const adminId = req.mwValue.auth.id;
+                
+                console.log('Admin creating news - Request body:', { title, content, category, contentType, youtubeUrl, state, district });
+                console.log('Files:', req.files);
+                
+                // Create news object with common fields
+                const newsData = {
+                    title,
+                    content,
+                    category,
+                    journalistId: null, // No journalist for admin-created news
+                    adminId: adminId, // Track which admin created it
+                    status: 'pending', // Set to pending, not auto-approved
+                    contentType: contentType || 'standard',
+                    state: state || null,
+                    district: district || null
+                };
+                
+                // Handle content type specific fields
+                if (contentType === 'standard') {
+                    if (req.files && req.files.featuredImage && req.files.featuredImage[0]) {
+                        const file = req.files.featuredImage[0];
+                        newsData.featuredImage = `/uploads/images/${file.filename}`;
+                        newsData.thumbnailUrl = newsData.featuredImage; // Use same image for thumbnail
+                    }
+                } else if (contentType === 'video') {
+                    if (youtubeUrl) {
+                        newsData.youtubeUrl = youtubeUrl;
+                        // Extract YouTube thumbnail if available
+                        const videoId = youtubeUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+                        if (videoId && videoId[1]) {
+                            newsData.thumbnailUrl = `https://img.youtube.com/vi/${videoId[1]}/hqdefault.jpg`;
+                        }
+                    } else if (req.files && req.files.video && req.files.video[0]) {
+                        const file = req.files.video[0];
+                        newsData.videoPath = `/uploads/videos/${file.filename}`;
+                    }
+                }
+                
+                // Validate required fields
+                if (!title || !content || !category) {
+                    return res.error(
+                        httpStatus.BAD_REQUEST,
+                        false,
+                        "Title, content, and category are required"
+                    );
+                }
+                
+                // Create the news
+                const news = await News.create(newsData);
+                
+                return res.success(httpStatus.CREATED, true, "News created successfully by admin", news);
+                
+            } catch (error) {
+                console.error('Admin create news error:', error);
+                return res.error(
+                    httpStatus.INTERNAL_SERVER_ERROR,
+                    false,
+                    "Error creating news: " + error.message
+                );
+            }
+        });
+    } catch (error) {
+        console.error('Admin create news outer error:', error);
+        return res.error(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            false,
+            "Error processing request: " + error.message
+        );
+    }
+};
 
+// Get admin's pending news
+newsController.getAdminPendingNews = async (req, res) => {
+    try {
+        const adminId = req.mwValue.auth.id;
+        
+        const pendingNews = await News.findAll({
+            where: { 
+                adminId,
+                status: 'pending'
+            },
+            attributes: [
+                'id', 'title', 'content', 'category', 'status', 
+                'contentType', 'youtubeUrl', 'videoPath', 
+                'featuredImage', 'thumbnailUrl', 'views',
+                'createdAt', 'updatedAt', 'state', 'district'
+            ],
+            order: [['createdAt', 'DESC']]
+        });
+
+        return res.success(
+            httpStatus.OK, 
+            true, 
+            "Admin pending news fetched successfully", 
+            pendingNews
+        );
+    } catch (error) {
+        console.error('Fetch admin pending news error:', error);
+        return res.error(
+            httpStatus.INTERNAL_SERVER_ERROR, 
+            false, 
+            "Error fetching admin pending news", 
+            error
+        );
+    }
+};
+
+// Admin approve their own news
+newsController.adminApproveNews = async (req, res) => {
+    try {
+        const { newsId } = req.params;
+        const adminId = req.mwValue.auth.id;
+
+        const news = await News.findOne({
+            where: {
+                id: newsId,
+                adminId: adminId,
+                status: 'pending'
+            }
+        });
+
+        if (!news) {
+            return res.error(httpStatus.NOT_FOUND, false, "News not found or not eligible for approval");
+        }
+
+        await news.update({
+            status: 'approved',
+            editorId: adminId // Admin acts as their own editor
+        });
+
+        return res.success(httpStatus.OK, true, "News approved successfully", news);
+    } catch (error) {
+        console.error('Admin approve news error:', error);
+        return res.error(httpStatus.INTERNAL_SERVER_ERROR, false, "Error approving news", error);
+    }
+};
 module.exports=newsController;
