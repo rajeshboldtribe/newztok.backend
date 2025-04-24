@@ -40,7 +40,7 @@ const storage = multer.diskStorage({
 const upload = multer({ 
     storage: storage,
     limits: {
-        fileSize: 50 * 1024 * 1024, //to 50MB limit
+        fileSize: 100 * 1024 * 1024, //  100MB limit
     }
 });
 
@@ -57,12 +57,25 @@ newsController.createNews = async (req, res) => {
         uploadFields(req, res, async function(err) {
             if (err) {
                 console.error('Upload error:', err);
+                // Check for specific multer errors
+                if (err instanceof multer.MulterError) {
+                    if (err.code === 'LIMIT_FILE_SIZE') {
+                        return res.error(
+                            httpStatus.BAD_REQUEST,
+                            false,
+                            "File too large",
+                            "Maximum file size is 100MB. Please upload a smaller file."
+                        );
+                    }
+                }
                 return res.error(
                     httpStatus.BAD_REQUEST,
                     false,
-                    "Error uploading file: " + err.message
+                    "Error uploading file",
+                    err.message
                 );
             }
+            
             
             try {
                 // Extract values from request body and clean them
@@ -119,7 +132,7 @@ newsController.createNews = async (req, res) => {
                 if (!title || !content || !category) {
                     return res.error(
                         httpStatus.BAD_REQUEST,
-                        false,
+                        false, 
                         "Title, content, and category are required"
                     );
                 }

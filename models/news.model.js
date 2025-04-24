@@ -1,6 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
-const User=require('./user.model')
+const User = require('./user.model');
 
 const News = sequelize.define('news', {
     id: {
@@ -110,22 +110,20 @@ const News = sequelize.define('news', {
     timestamps: true
 });
 
-/// associations
-News.belongsTo(User, {
-    foreignKey: 'journalistId',
-    as: 'journalist'
-});
-
-News.belongsTo(User, {
-    foreignKey: 'editorId',
-    as: 'editor'
-});
-
-News.belongsTo(User, {
-    foreignKey: 'featuredBy',
-    as: 'featuredByEditor'
-});
-
-
+// Remove these associations as they're defined in index.js
+// News.belongsTo(User, {
+//     foreignKey: 'journalistId',
+//     as: 'journalist'
+// });
+// 
+// News.belongsTo(User, {
+//     foreignKey: 'editorId',
+//     as: 'editor'
+// });
+// 
+// News.belongsTo(User, {
+//     foreignKey: 'featuredBy',
+//     as: 'featuredByEditor'
+// });
 
 module.exports = News;

@@ -8,4 +8,6 @@ router.get('/pending-posts', checkUserAuth, checkRole(['admin', 'editor']), dash
 router.get('/users/:role', checkUserAuth, checkRole(['admin']), dashboardController.getUsersByRole);
 router.get('/users', checkUserAuth, checkRole(['admin']), dashboardController.getAllUsers);
 router.delete('/users/:userId', checkUserAuth, checkRole(['admin']), dashboardController.deleteUser);
+router.post('/journalist/create', checkUserAuth, checkRole(['admin']), dashboardController.createJournalist);
+router.get('/rejected-news', checkUserAuth, checkRole(['admin', 'editor']), dashboardController.getRejectedNews);
 module.exports = router;

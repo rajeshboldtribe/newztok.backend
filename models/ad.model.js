@@ -9,7 +9,7 @@ const Ad = sequelize.define('Ad', {
     },
     title: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: true 
     },
     type: {
         type: DataTypes.ENUM('banner', 'side', 'card', 'popover'),

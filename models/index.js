@@ -4,7 +4,7 @@ const Like = require('./like.model');
 const Comment = require('./comment.model');
 const Share = require('./share.model');
 const Version = require('./version.model');
-const Saved=require('./saved.model');
+const Saved = require('./saved.model');
 const Ad = require('./ad.model');
 
 // User-News associations
@@ -17,23 +17,31 @@ User.hasMany(News, {
     foreignKey: 'editorId',
     as: 'reviewedNews'
 });
+
 User.hasMany(News, {
     foreignKey: 'adminId',
     as: 'adminCreatedNews'
 });
 
+// Define these associations only once with consistent aliases
 News.belongsTo(User, {
     foreignKey: 'journalistId',
-    as: 'author'  
+    as: 'journalist'  // Keep this consistent
 });
 
 News.belongsTo(User, {
     foreignKey: 'editorId',
-    as: 'editer'  
+    as: 'editor'  // Keep this consistent
 });
+
 News.belongsTo(User, {
     foreignKey: 'adminId',
     as: 'admin'  
+});
+
+News.belongsTo(User, {
+    foreignKey: 'featuredBy',
+    as: 'featuredByEditor'
 });
 
 // Like associations
