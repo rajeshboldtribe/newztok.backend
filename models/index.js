@@ -23,15 +23,14 @@ User.hasMany(News, {
     as: 'adminCreatedNews'
 });
 
-// Define these associations only once with consistent aliases
 News.belongsTo(User, {
     foreignKey: 'journalistId',
-    as: 'journalist'  // Keep this consistent
+    as: 'journalist'  
 });
 
 News.belongsTo(User, {
     foreignKey: 'editorId',
-    as: 'editor'  // Keep this consistent
+    as: 'editor'
 });
 
 News.belongsTo(User, {

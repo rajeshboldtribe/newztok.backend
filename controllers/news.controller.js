@@ -190,7 +190,7 @@ newsController.getMyNews = async (req, res) => {
             include: [
                 {
                     model: User,
-                    as: 'author', 
+                    as: 'journalist', 
                     attributes: ['id', 'username']
                 }
             ],
@@ -259,7 +259,7 @@ newsController.getPendingNews = async (req, res) => {
             include: [
                 {
                     model: User,
-                    as: 'author',
+                    as: 'journalist',
                     attributes: ['username']
                 }
             ],
@@ -1229,33 +1229,90 @@ newsController.getAdminPendingNews = async (req, res) => {
     }
 };
 
-// Admin approve their own news
+// Admin approve or reject any news (their own, editors', or journalists')
 newsController.adminApproveNews = async (req, res) => {
     try {
         const { newsId } = req.params;
+        const { status } = req.body; // status can be approved or rejected
         const adminId = req.mwValue.auth.id;
 
+        if (!['approved', 'rejected'].includes(status)) {
+            return res.error(httpStatus.BAD_REQUEST, false, "Invalid status. Use 'approved' or 'rejected'");
+        }
+
+        // Find any news with pending status, not just admin's own news
         const news = await News.findOne({
             where: {
                 id: newsId,
-                adminId: adminId,
                 status: 'pending'
-            }
+            },
+            include: [
+                {
+                    model: User,
+                    as: 'journalist',
+                    attributes: ['id', 'username']
+                }
+            ]
         });
 
         if (!news) {
-            return res.error(httpStatus.NOT_FOUND, false, "News not found or not eligible for approval");
+            return res.error(httpStatus.NOT_FOUND, false, "News not found or not eligible for approval/rejection");
         }
 
         await news.update({
-            status: 'approved',
-            editorId: adminId // Admin acts as their own editor
+            status,
+            editorId: adminId // Admin acts as the editor
         });
 
-        return res.success(httpStatus.OK, true, "News approved successfully", news);
+        // Get admin info for notifications
+        const admin = await User.findByPk(adminId, {
+            attributes: ['username']
+        });
+
+        // Send notifications based on status
+        try {
+            if (status === 'approved') {
+                // Notify all audience about new article
+                await notificationService.sendToRole('audience', 
+                    'New Article Available', 
+                    `A new article is now available: "${news.title}"`,
+                    {
+                        type: 'new_published_article',
+                        newsId: news.id.toString()
+                    }
+                );
+                
+                // If the news has a journalist, notify them about approval
+                if (news.journalistId) {
+                    await notificationService.sendToUsers([news.journalistId], 
+                        'Article Approved by Admin', 
+                        `Your article "${news.title}" has been approved by admin ${admin.username}`,
+                        {
+                            type: 'article_approved',
+                            newsId: news.id.toString()
+                        }
+                    );
+                }
+            } else if (status === 'rejected' && news.journalistId) {
+                // If rejected and has a journalist, notify them
+                await notificationService.sendToUsers([news.journalistId], 
+                    'Article Rejected by Admin', 
+                    `Your article "${news.title}" has been rejected by admin ${admin.username}`,
+                    {
+                        type: 'article_rejected',
+                        newsId: news.id.toString()
+                    }
+                );
+            }
+        } catch (notifError) {
+            console.error('Notification error:', notifError);
+            // Continue execution even if notification fails
+        }
+
+        return res.success(httpStatus.OK, true, `News ${status} successfully by admin`, news);
     } catch (error) {
-        console.error('Admin approve news error:', error);
-        return res.error(httpStatus.INTERNAL_SERVER_ERROR, false, "Error approving news", error);
+        console.error('Admin approve/reject news error:', error);
+        return res.error(httpStatus.INTERNAL_SERVER_ERROR, false, "Error processing news", error);
     }
 };
 module.exports=newsController;

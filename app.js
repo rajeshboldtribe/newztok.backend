@@ -59,8 +59,15 @@ async function startServer() {
         
         // sync model 
         try {
+            // Temporarily disable foreign key checks
+            await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
+            
+            
             await sequelize.sync({ force: false, alter: false });
             console.log('Database tables synced successfully.');
+            
+            // Re-enable foreign key checks
+            await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
             
             // Explicitly check and create Version table if it doesn't exist
             try {

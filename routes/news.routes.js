@@ -31,6 +31,6 @@ router.delete('/delete/:newsId', checkUserAuth, checkRole(['editor', 'admin']), 
 // Admin news routes
 router.post('/admin/create', checkUserAuth, checkRole('admin'), newsController.adminCreateNews);
 router.get('/admin/pending', checkUserAuth, checkRole('admin'), newsController.getAdminPendingNews);
-router.put('/admin/approve/:newsId', checkUserAuth, checkRole('admin'), newsController.adminApproveNews);
+router.put('/admin/news/status/:newsId', checkUserAuth, checkRole('admin'), newsController.adminApproveNews);
 
 module.exports = router;

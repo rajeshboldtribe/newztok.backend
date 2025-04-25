@@ -110,20 +110,4 @@ const News = sequelize.define('news', {
     timestamps: true
 });
 
-// Remove these associations as they're defined in index.js
-// News.belongsTo(User, {
-//     foreignKey: 'journalistId',
-//     as: 'journalist'
-// });
-// 
-// News.belongsTo(User, {
-//     foreignKey: 'editorId',
-//     as: 'editor'
-// });
-// 
-// News.belongsTo(User, {
-//     foreignKey: 'featuredBy',
-//     as: 'featuredByEditor'
-// });
-
 module.exports = News;
