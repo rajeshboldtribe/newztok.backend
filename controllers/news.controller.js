@@ -1315,4 +1315,64 @@ newsController.adminApproveNews = async (req, res) => {
         return res.error(httpStatus.INTERNAL_SERVER_ERROR, false, "Error processing news", error);
     }
 };
+
+// Get news by state and district
+newsController.getNewsByStateAndDistrict = async (req, res) => {
+    try {
+        const { state, district } = req.params;
+        
+        if (!state || !district) {
+            return res.error(
+                httpStatus.BAD_REQUEST,
+                false,
+                "State and district parameters are required"
+            );
+        }
+
+        const news = await News.findAll({
+            where: { 
+                status: 'approved',
+                state: state,
+                district: district
+            },
+            include: [
+                {
+                    model: User,
+                    as: 'journalist',
+                    attributes: ['id', 'username']
+                },
+                {
+                    model: User,
+                    as: 'editor',
+                    attributes: ['id', 'username']
+                }
+            ],
+            attributes: [
+                'id', 'title', 'content', 'category', 'status',
+                'contentType', 'youtubeUrl', 'videoPath',
+                'featuredImage', 'thumbnailUrl', 'views', 'state', 'district',
+                'createdAt', 'updatedAt',
+                [sequelize.literal('(SELECT COUNT(*) FROM likes WHERE likes.newsId = news.id)'), 'likesCount'],
+                [sequelize.literal('(SELECT COUNT(*) FROM comments WHERE comments.newsId = news.id)'), 'commentsCount'],
+                [sequelize.literal('(SELECT COUNT(*) FROM shares WHERE shares.newsId = news.id)'), 'sharesCount']
+            ],
+            order: [['createdAt', 'DESC']]
+        });
+        
+        return res.success(
+            httpStatus.OK,
+            true,
+            `News from ${district}, ${state} fetched successfully`,
+            news
+        );
+    } catch (error) {
+        console.error('Fetch state and district news error:', error);
+        return res.error(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            false,
+            "Error fetching news by state and district",
+            error.message
+        );
+    }
+};
 module.exports=newsController;

@@ -24,13 +24,15 @@ router.get('/featured', newsController.getFeaturedNews);
 //trending news route
 router.get('/trending',newsController.getTrendingNews);
 
-//state news route
+//state,district news route
 router.get('/state/:state',newsController.getNewsByState);
+router.get('/location/:state/:district', newsController.getNewsByStateAndDistrict);
 // Delete news route (for editors and admins)
 router.delete('/delete/:newsId', checkUserAuth, checkRole(['editor', 'admin']), newsController.deleteNews);
 // Admin news routes
 router.post('/admin/create', checkUserAuth, checkRole('admin'), newsController.adminCreateNews);
 router.get('/admin/pending', checkUserAuth, checkRole('admin'), newsController.getAdminPendingNews);
 router.put('/admin/news/status/:newsId', checkUserAuth, checkRole('admin'), newsController.adminApproveNews);
+
 
 module.exports = router;

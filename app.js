@@ -53,15 +53,10 @@ async function startServer() {
         //  connect to database
         await sequelize.authenticate();
         console.log('Database connection established successfully.');
-        
-        // Explicitly require Version model to ensure it's loaded
-        const Version = require('./models/version.model');
-        
         // sync model 
         try {
             // Temporarily disable foreign key checks
             await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
-            
             
             await sequelize.sync({ force: false, alter: false });
             console.log('Database tables synced successfully.');
@@ -69,19 +64,6 @@ async function startServer() {
             // Re-enable foreign key checks
             await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
             
-            // Explicitly check and create Version table if it doesn't exist
-            try {
-                const tableExists = await sequelize.getQueryInterface().showAllTables()
-                    .then(tables => tables.map(t => t.toLowerCase()).includes('versions'));
-                
-                if (!tableExists) {
-                    console.log('Version table not found, creating it manually...');
-                    await Version.sync({ force: false });
-                    console.log('Version table created successfully');
-                }
-            } catch (versionError) {
-                console.error('Error verifying Version table:', versionError);
-            }
         } catch (syncError) {
             console.error("Database sync error:", syncError);
             console.log("Continuing server startup despite sync issues...");
