@@ -1375,4 +1375,123 @@ newsController.getNewsByStateAndDistrict = async (req, res) => {
         );
     }
 };
+
+//Re Edit approved News(editor,admin)
+newsController.reEditApprovedNews = async (req, res) => {
+    try {
+        const { newsId } = req.params;
+        const userId = req.mwValue.auth.id;
+        const userRole = req.mwValue.auth.role;
+        
+        // Only editors and admins can re-edit approved news
+        if (!['editor', 'admin'].includes(userRole)) {
+            return res.error(
+                httpStatus.FORBIDDEN,
+                false,
+                "Only editors and admins can re-edit approved news"
+            );
+        }
+        
+        // Find the approved news article
+        const news = await News.findOne({
+            where: {
+                id: newsId,
+                status: 'approved'
+            }
+        });
+        
+        if (!news) {
+            return res.error(
+                httpStatus.NOT_FOUND,
+                false,
+                "Approved news article not found"
+            );
+        }
+        
+        // Update the news with the new data
+        const { title, content, category, contentType, youtubeUrl, state, district } = req.body;
+        
+        // Create update object with only provided fields
+        const updateData = {};
+        if (title) updateData.title = title;
+        if (content) updateData.content = content;
+        if (category) updateData.category = category;
+        if (contentType) updateData.contentType = contentType;
+        if (youtubeUrl) updateData.youtubeUrl = youtubeUrl;
+        if (state) updateData.state = state;
+        if (district) updateData.district = district;
+        
+        // Add editor/admin ID to track who made the edit
+        if (userRole === 'editor') {
+            updateData.editorId = userId;
+        } else if (userRole === 'admin') {
+            updateData.adminId = userId;
+        }
+        
+        // Update the news article
+        await news.update(updateData);
+        
+        // Get the updated news
+        const updatedNews = await News.findByPk(newsId, {
+            include: [
+                {
+                    model: User,
+                    as: 'journalist',
+                    attributes: ['id', 'username']
+                },
+                {
+                    model: User,
+                    as: 'editor',
+                    attributes: ['id', 'username']
+                }
+            ]
+        });
+        
+        // Notify the journalist if their article was re-edited
+        if (news.journalistId) {
+            try {
+                const editor = await User.findByPk(userId, {
+                    attributes: ['username', 'role']
+                });
+                
+                await notificationService.sendToUsers([news.journalistId], 
+                    'Article Re-Edited', 
+                    `Your approved article "${news.title}" has been re-edited by ${editor.role} ${editor.username}`,
+                    {
+                        type: 'article_re_edited',
+                        newsId: news.id.toString()
+                    }
+                );
+            } catch (notifError) {
+                console.error('Notification error:', notifError);
+                // Continue execution even if notification fails
+            }
+        }
+        
+        return res.success(
+            httpStatus.OK,
+            true,
+            "Approved news re-edited successfully",
+            updatedNews
+        );
+    } catch (error) {
+        console.error('Re-edit approved news error:', error);
+        return res.error(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            false,
+            "Error re-editing approved news",
+            error.message
+        );
+    }
+};
+
+
+
+
+
+
+
+
+
+
 module.exports=newsController;

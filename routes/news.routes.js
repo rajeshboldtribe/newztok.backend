@@ -33,6 +33,7 @@ router.delete('/delete/:newsId', checkUserAuth, checkRole(['editor', 'admin']), 
 router.post('/admin/create', checkUserAuth, checkRole('admin'), newsController.adminCreateNews);
 router.get('/admin/pending', checkUserAuth, checkRole('admin'), newsController.getAdminPendingNews);
 router.put('/admin/news/status/:newsId', checkUserAuth, checkRole('admin'), newsController.adminApproveNews);
+router.put('/re-edit/:newsId', checkUserAuth, checkRole(['editor', 'admin']), newsController.reEditApprovedNews);
 
 
 module.exports = router;

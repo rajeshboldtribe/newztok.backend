@@ -274,7 +274,7 @@ dashboardController.deleteUser = async (req, res) => {
             );
         }
         
-        // Only allow deletion of journalists and editors
+        // Only allow delete of journalists and editors
         if (user.role !== 'journalist' && user.role !== 'editor') {
             return res.error(
                 httpStatus.FORBIDDEN,
@@ -471,12 +471,12 @@ dashboardController.getRejectedNews = async (req, res) => {
             include: [
                 {
                     model: User,
-                    as: 'journalist',  // Use this if you update index.js, or 'author' if you don't
+                    as: 'journalist',  
                     attributes: ['id', 'username', 'assignedState', 'assignedDistrict']
                 },
                 {
                     model: User,
-                    as: 'editor',  // Use this if you update index.js, or 'editer' if you don't
+                    as: 'editor',  
                     attributes: ['id', 'username']
                 }
             ],
