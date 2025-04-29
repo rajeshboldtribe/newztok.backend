@@ -34,6 +34,6 @@ router.post('/admin/create', checkUserAuth, checkRole('admin'), newsController.a
 router.get('/admin/pending', checkUserAuth, checkRole('admin'), newsController.getAdminPendingNews);
 router.put('/admin/news/status/:newsId', checkUserAuth, checkRole('admin'), newsController.adminApproveNews);
 router.put('/re-edit/:newsId', checkUserAuth, checkRole(['editor', 'admin']), newsController.reEditApprovedNews);
-
+router.put('/admin/edit/:newsId', checkUserAuth, checkRole('admin'), newsController.adminEditPendingNews);
 
 module.exports = router;

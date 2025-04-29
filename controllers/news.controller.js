@@ -616,7 +616,7 @@ newsController.getEditorApprovedNews = async (req, res) => {
                 'id', 'title', 'content', 'category', 'status',
                 'contentType', 'youtubeUrl', 'videoPath',
                 'featuredImage', 'thumbnailUrl', 'views',
-                'createdAt', 'updatedAt'
+                'createdAt', 'updatedAt','state','district'
             ],
             order: [['updatedAt', 'DESC']]
         });
@@ -1481,6 +1481,183 @@ newsController.reEditApprovedNews = async (req, res) => {
             false,
             "Error re-editing approved news",
             error.message
+        );
+    }
+};
+
+
+// Admin edit pending news before approval/reject
+newsController.adminEditPendingNews = async (req, res) => {
+    try {
+        const { newsId } = req.params;
+        const adminId = req.user.id;
+        
+        // Find the news post
+        const news = await News.findByPk(newsId, {
+            include: [
+                {
+                    model: User,
+                    as: 'journalist',
+                    attributes: ['id', 'username']
+                }
+            ]
+        });
+        
+        if (!news) {
+            return res.error(
+                httpStatus.NOT_FOUND,
+                false,
+                "News post not found"
+            );
+        }
+        
+        // Check if news is in pending state
+        if (news.status !== 'pending') {
+            return res.error(
+                httpStatus.BAD_REQUEST,
+                false,
+                "Only pending news posts can be edited by admin"
+            );
+        }
+        
+        // Use fields to handle both image and video uploads with different field names
+        const uploadFields = upload.fields([
+            { name: 'featuredImage', maxCount: 1 },
+            { name: 'video', maxCount: 1 }
+        ]);
+        
+        uploadFields(req, res, async function(err) {
+            if (err) {
+                return res.error(
+                    httpStatus.BAD_REQUEST,
+                    false,
+                    "Error uploading file: " + err.message
+                );
+            }
+            
+            try {
+                // Extract values from request body and clean them
+                let { title, content, category, contentType, youtubeUrl, state, district } = req.body;
+                
+                // Remove any surrounding quotes from string values
+                title = title ? title.replace(/^["'](.*)["']$/, '$1') : title;
+                content = content ? content.replace(/^["'](.*)["']$/, '$1') : content;
+                category = category ? category.replace(/^["'](.*)["']$/, '$1') : category;
+                contentType = contentType ? contentType.replace(/^["'](.*)["']$/, '$1') : contentType;
+                youtubeUrl = youtubeUrl ? youtubeUrl.replace(/^["'](.*)["']$/, '$1') : youtubeUrl;
+                state = state ? state.replace(/^["'](.*)["']$/, '$1') : state;
+                district = district ? district.replace(/^["'](.*)["']$/, '$1') : district;
+                
+                // Create news object with updated fields
+                const newsData = {
+                    title: title || news.title,
+                    content: content || news.content,
+                    category: category || news.category,
+                    contentType: contentType || news.contentType,
+                    state: state !== undefined ? state : news.state,
+                    district: district !== undefined ? district : news.district,
+                    adminId: adminId // Track which admin edited it
+                };
+                
+                // Handle content type specific fields
+                if (contentType === 'standard' || news.contentType === 'standard') {
+                    if (req.files && req.files.featuredImage && req.files.featuredImage[0]) {
+                        // Delete old image if exists and it's not the default
+                        if (news.featuredImage && news.featuredImage !== '/uploads/images/default.jpg') {
+                            const oldImagePath = path.join(__dirname, '..', news.featuredImage);
+                            if (fs.existsSync(oldImagePath)) {
+                                fs.unlinkSync(oldImagePath);
+                            }
+                        }
+                        
+                        const file = req.files.featuredImage[0];
+                        newsData.featuredImage = `/uploads/images/${file.filename}`;
+                        newsData.thumbnailUrl = newsData.featuredImage; // Use same image for thumbnail
+                    }
+                } else if (contentType === 'video' || news.contentType === 'video') {
+                    if (youtubeUrl) {
+                        newsData.youtubeUrl = youtubeUrl;
+                        // Extract YouTube thumbnail if available
+                        const videoId = youtubeUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+                        if (videoId && videoId[1]) {
+                            newsData.thumbnailUrl = `https://img.youtube.com/vi/${videoId[1]}/hqdefault.jpg`;
+                        }
+                    } else if (req.files && req.files.video && req.files.video[0]) {
+                        // Delete old video if exists
+                        if (news.videoPath) {
+                            const oldVideoPath = path.join(__dirname, '..', news.videoPath);
+                            if (fs.existsSync(oldVideoPath)) {
+                                fs.unlinkSync(oldVideoPath);
+                            }
+                        }
+                        
+                        const file = req.files.video[0];
+                        newsData.videoPath = `/uploads/videos/${file.filename}`;
+                    }
+                }
+                
+                // Update the news
+                await news.update(newsData);
+                
+                // Reload the news object to get fresh data from the database
+                const updatedNews = await News.findByPk(news.id, {
+                    include: [
+                        {
+                            model: User,
+                            as: 'journalist',
+                            attributes: ['id', 'username']
+                        },
+                        {
+                            model: User,
+                            as: 'admin',
+                            attributes: ['id', 'username']
+                        }
+                    ]
+                });
+                
+                // Notify the journalist that their article was edited by admin
+                try {
+                    if (news.journalistId) {
+                        const admin = await User.findByPk(adminId, {
+                            attributes: ['username']
+                        });
+                        
+                        await notificationService.sendToUsers([news.journalistId], 
+                            'Article Edited by Admin', 
+                            `Admin ${admin.username} has edited your article: "${updatedNews.title}" before approval`,
+                            {
+                                type: 'admin_edited_article',
+                                newsId: updatedNews.id.toString()
+                            }
+                        );
+                    }
+                } catch (notifError) {
+                    console.error('Notification error:', notifError);
+                    // Continue execution even if notification fails
+                }
+                
+                return res.success(
+                    httpStatus.OK, 
+                    true, 
+                    "News post edited successfully by admin", 
+                    updatedNews
+                );
+                
+            } catch (error) {
+                console.error('Admin edit news error:', error);
+                return res.error(
+                    httpStatus.INTERNAL_SERVER_ERROR,
+                    false,
+                    "Error editing news: " + error.message
+                );
+            }
+        });
+    } catch (error) {
+        console.error('Admin edit news outer error:', error);
+        return res.error(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            false,
+            "Error processing request: " + error.message
         );
     }
 };
