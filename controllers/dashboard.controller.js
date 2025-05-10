@@ -108,8 +108,10 @@ dashboardController.getLatestPendingPosts = async (req, res) => {
                 }
             ],
             attributes: [
-                'id', 'title', 'category', 'contentType', 
-                'createdAt', 'state', 'district'
+            'id', 'title', 'content', 'category', 'status', 
+                'contentType', 'youtubeUrl', 'videoPath', 
+                'featuredImage', 'thumbnailUrl', 'views',
+                'createdAt', 'updatedAt','state','district'
             ],
             order: [['createdAt', 'DESC']],
             limit: limit,
@@ -524,5 +526,58 @@ dashboardController.getRejectedNews = async (req, res) => {
         );
     }
 };
+  
+// Get approved news with pagination
+dashboardController.getApprovedNews = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
 
+        const { count, rows: approvedNews } = await News.findAndCountAll({
+            where: { status: 'approved' },
+            include: [
+                {
+                    model: User,
+                    as: 'journalist',
+                    attributes: ['id', 'username']
+                },
+                {
+                    model: User,
+                    as: 'admin',
+                    attributes: ['id', 'username']
+                },
+                {
+                    model: User,
+                    as: 'editor',
+                    attributes: ['id', 'username']
+                }
+            ],
+            // No attributes restriction to get all fields
+            order: [['createdAt', 'DESC']],
+            limit: limit,
+            offset: offset
+        });
+
+        return res.success(
+            httpStatus.OK,
+            true,
+            "Approved news fetched successfully",
+            {
+                total: count,
+                totalPages: Math.ceil(count / limit),
+                currentPage: page,
+                posts: approvedNews
+            }
+        );
+    } catch (error) {
+        console.error('Get approved news error:', error);
+        return res.error(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            false,
+            "Error fetching approved news",
+            error.message
+        );
+    }
+};
 module.exports = dashboardController;

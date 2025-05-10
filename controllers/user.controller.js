@@ -6,6 +6,7 @@ const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const notificationService = require('../services/notification.service');
 
 const userController = {};
 
@@ -373,6 +374,47 @@ userController.updateFcmToken = async (req, res) => {
       false,
       "Error updating FCM token: " + error.message
     );
+  }
+};
+
+// Send notification to all audience when news is approved
+userController.sendNewsApprovedNotification = async (newsId, newsTitle) => {
+  try {
+    // Find all users with role 'audience' who have FCM tokens
+    const audienceUsers = await User.findAll({
+      where: {
+        role: 'audience',
+        fcmToken: {
+          [sequelize.Op.not]: null
+        }
+      },
+      attributes: ['id', 'fcmToken']
+    });
+
+    if (audienceUsers.length === 0) {
+      console.log('No audience users with FCM tokens found');
+      return;
+    }
+
+    // Get audience user IDs
+    const audienceIds = audienceUsers.map(user => user.id);
+
+    // Send notification to all audience users
+    await notificationService.sendToUsers(
+      audienceIds,
+      'New Article Published!',
+      `${newsTitle} - Read it now on NewzTok`,
+      {
+        type: 'news_approved',
+        newsId: newsId.toString()
+      }
+    );
+
+    console.log(`Notification sent to ${audienceIds.length} audience members for news: ${newsTitle}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending news approved notification:', error);
+    return false;
   }
 };
 

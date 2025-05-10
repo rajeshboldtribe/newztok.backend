@@ -10,4 +10,6 @@ router.get('/users', checkUserAuth, checkRole(['admin']), dashboardController.ge
 router.delete('/users/:userId', checkUserAuth, checkRole(['admin']), dashboardController.deleteUser);
 router.post('/journalist/create', checkUserAuth, checkRole(['admin']), dashboardController.createJournalist);
 router.get('/rejected-news', checkUserAuth, checkRole(['admin', 'editor']), dashboardController.getRejectedNews);
+router.get('/approved-news', checkUserAuth, checkRole(['admin', 'editor']), dashboardController.getApprovedNews);
+
 module.exports = router;

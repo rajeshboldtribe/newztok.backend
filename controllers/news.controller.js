@@ -467,14 +467,14 @@ newsController.updateNewsStatus = async (req, res) => {
                 );
             } else if (status === 'rejected') {
                 // Notify only the journalist about rejection
-                await notificationService.sendToUsers([news.journalistId], 
-                    'Article Rejected', 
-                    `Your article "${news.title}" has been rejected by ${editor.username}`,
-                    {
-                        type: 'article_rejected',
-                        newsId: news.id.toString()
-                    }
-                );
+            //     await notificationService.sendToUsers([news.journalistId], 
+            //         'Article Rejected', 
+            //         `Your article "${news.title}" has been rejected by ${editor.username}`,
+            //         {
+            //             type: 'article_rejected',
+            //             newsId: news.id.toString()
+            //         }
+            //     );
             }
         } catch (notifError) {
             console.error('Notification error:', notifError);
@@ -576,7 +576,7 @@ newsController.getRejectedNews = async (req, res) => {
                 'id', 'title', 'content', 'category', 'status',
                 'contentType', 'youtubeUrl', 'videoPath',
                 'featuredImage', 'thumbnailUrl', 'views',
-                'createdAt', 'updatedAt'
+                'createdAt', 'updatedAt','state','district'
                  
             ],
             order: [['updatedAt', 'DESC']]
@@ -766,34 +766,34 @@ newsController.updateNews = async (req, res) => {
                 try {
                     if (userRole === 'journalist') {
                         // Get journalist info for notification
-                        const journalist = await User.findByPk(userId, {
-                            attributes: ['username']
-                        });
+                        // const journalist = await User.findByPk(userId, {
+                        //     attributes: ['username']
+                        // });
                         
                         // Send notification to all editors about updated article
-                        await notificationService.sendToRole('editor', 
-                            'Article Updated', 
-                            `${journalist.username} has updated an article: "${updatedNews.title}"`,
-                            {
-                                type: 'updated_article',
-                                newsId: updatedNews.id.toString()
-                            }
-                        );
+                        // await notificationService.sendToRole('editor', 
+                        //     'Article Updated', 
+                        //     `${journalist.username} has updated an article: "${updatedNews.title}"`,
+                        //     {
+                        //         type: 'updated_article',
+                        //         newsId: updatedNews.id.toString()
+                        //     }
+                        // );
                     } else if (userRole === 'editor') {
                         // Get editor info for notification
-                        const editor = await User.findByPk(userId, {
-                            attributes: ['username']
-                        });
+                        // const editor = await User.findByPk(userId, {
+                        //     attributes: ['username']
+                        // });
                         
                         // Send notification to the journalist about editor's edits
-                        await notificationService.sendToUsers([updatedNews.journalistId], 
-                            'Article Edited by Editor', 
-                            `Editor ${editor.username} has edited your article: "${updatedNews.title}"`,
-                            {
-                                type: 'editor_edited_article',
-                                newsId: updatedNews.id.toString()
-                            }
-                        );
+                        // await notificationService.sendToUsers([updatedNews.journalistId], 
+                    //         'Article Edited by Editor', 
+                    //         `Editor ${editor.username} has edited your article: "${updatedNews.title}"`,
+                    //         {
+                    //             type: 'editor_edited_article',
+                    //             newsId: updatedNews.id.toString()
+                    //         }
+                    //     );
                     }
                 } catch (notifError) {
                     // Continue execution even if notification fails
@@ -822,7 +822,17 @@ newsController.updateNews = async (req, res) => {
 newsController.FeaturedNews = async (req, res) => {
     try {
         const { newsId } = req.params;
-        const editorId = req.user.id;
+        const userId = req.user.id;
+        const userRole = req.user.role;
+        
+        // Check if user is editor or admin
+        if (userRole !== 'editor' && userRole !== 'admin') {
+            return res.error(
+                httpStatus.FORBIDDEN,
+                false,
+                "Only editors and admins can feature news"
+            );
+        }
         
         // Find the news article
         const news = await News.findByPk(newsId);
@@ -849,8 +859,8 @@ newsController.FeaturedNews = async (req, res) => {
         
         await news.update({
             isFeatured,
-            // Store which editor marked it as featured
-            featuredBy: isFeatured ? editorId : null
+            // Store which user (editor or admin) marked it as featured
+            featuredBy: isFeatured ? userId : null
         });
         
         // Reload to get fresh data
@@ -869,7 +879,7 @@ newsController.FeaturedNews = async (req, res) => {
                 {
                     model: User,
                     as: 'featuredByEditor',
-                    attributes: ['id', 'username']
+                    attributes: ['id', 'username', 'role']
                 }
             ]
         });
@@ -877,14 +887,14 @@ newsController.FeaturedNews = async (req, res) => {
         return res.success(
             httpStatus.OK, 
             true, 
-            `News ${isFeatured ? 'marked as' : 'removed from'} featured successfully`, 
+            `News ${isFeatured ? 'marked as' : 'removed from'} featured successfully by ${userRole}`, 
             updatedNews
         );
     } catch (error) {
         return res.error(
             httpStatus.INTERNAL_SERVER_ERROR,
             false,
-            "Error news featured status",
+            "Error updating news featured status",
             error.message
         );
     }
@@ -919,7 +929,7 @@ newsController.getFeaturedNews = async (req, res) => {
                 'id', 'title', 'content', 'category', 'status',
                 'contentType', 'youtubeUrl', 'videoPath',
                 'featuredImage', 'thumbnailUrl', 'views',
-                'createdAt', 'updatedAt', 'isFeatured'
+                'createdAt', 'updatedAt', 'isFeatured','state','district'
             ],
             order: [['updatedAt', 'DESC']]
         });
@@ -1055,18 +1065,18 @@ newsController.deleteNews = async (req, res) => {
         // Send notification to the journalist if an editor deleted their article
         try {
             if (userRole === 'editor' && news.journalistId) {
-                const editor = await User.findByPk(userId, {
-                    attributes: ['username']
-                });
+                // const editor = await User.findByPk(userId, {
+                //     attributes: ['username']
+                // });
                 
-                await notificationService.sendToUsers([news.journalistId], 
-                    'Article Deleted', 
-                    `Editor ${editor.username} has deleted your article: "${news.title}"`,
-                    {
-                        type: 'article_deleted',
-                        newsId: newsId
-                    }
-                );
+                // await notificationService.sendToUsers([news.journalistId], 
+                //     'Article Deleted', 
+                //     `Editor ${editor.username} has deleted your article: "${news.title}"`,
+                //     {
+                //         type: 'article_deleted',
+                //         newsId: newsId
+                //     }
+                // );
             }
         } catch (notifError) {
             // Continue execution even if notification fails
@@ -1198,25 +1208,43 @@ newsController.getAdminPendingNews = async (req, res) => {
     try {
         const adminId = req.mwValue.auth.id;
         
+        // Fetch all pending news with complete data
         const pendingNews = await News.findAll({
             where: { 
-                adminId,
                 status: 'pending'
             },
-            attributes: [
-                'id', 'title', 'content', 'category', 'status', 
-                'contentType', 'youtubeUrl', 'videoPath', 
-                'featuredImage', 'thumbnailUrl', 'views',
-                'createdAt', 'updatedAt', 'state', 'district'
+            // Don't specify attributes to get all fields
+            include: [
+                {
+                    model: User,
+                    as: 'journalist',
+                    attributes: ['id', 'username']
+                },
+                {
+                    model: User,
+                    as: 'admin',
+                    attributes: ['id', 'username']
+                }
             ],
             order: [['createdAt', 'DESC']]
         });
 
+        // Count total pending news
+        const total = pendingNews.length;
+
+        // Format response with pagination info
+        const response = {
+            total,
+            totalPages: 1,
+            currentPage: 1,
+            posts: pendingNews
+        };
+
         return res.success(
             httpStatus.OK, 
             true, 
-            "Admin pending news fetched successfully", 
-            pendingNews
+            "Latest pending posts fetched successfully", 
+            response
         );
     } catch (error) {
         console.error('Fetch admin pending news error:', error);
@@ -1295,14 +1323,14 @@ newsController.adminApproveNews = async (req, res) => {
                 }
             } else if (status === 'rejected' && news.journalistId) {
                 // If rejected and has a journalist, notify them
-                await notificationService.sendToUsers([news.journalistId], 
-                    'Article Rejected by Admin', 
-                    `Your article "${news.title}" has been rejected by admin ${admin.username}`,
-                    {
-                        type: 'article_rejected',
-                        newsId: news.id.toString()
-                    }
-                );
+                // await notificationService.sendToUsers([news.journalistId], 
+                //     'Article Rejected by Admin', 
+                //     `Your article "${news.title}" has been rejected by admin ${admin.username}`,
+                //     {
+                //         type: 'article_rejected',
+                //         newsId: news.id.toString()
+                //     }
+                // );
             }
         } catch (notifError) {
             console.error('Notification error:', notifError);

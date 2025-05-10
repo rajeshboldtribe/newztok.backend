@@ -8,6 +8,7 @@ const authRoutes = require("./routes/auth.routes");
 const newsRoutes=require("./routes/news.routes");
 const dashboardRoutes = require('./routes/dashboard.routes');
 require('./models/index');
+const notificationRoutes = require('./routes/notification.routes');
 const seedSuperAdmin=require('./seeders/superAdminSeeder');
 const interactionRoutes=require('./routes/interaction.routes');
 const userController = require("./controllers/user.controller");
@@ -45,8 +46,11 @@ app.use('/api/users',userRoutes);
 app.use('/api/versions',versionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/ads', adRoutes);
+app.use('/api/notifications', notificationRoutes); // Move this here
 app.use(handleNotFound);
 app.use(errorHandler);
+
+
 
 async function startServer() {
     try {
