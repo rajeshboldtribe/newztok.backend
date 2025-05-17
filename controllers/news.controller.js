@@ -417,6 +417,7 @@ newsController.getMyRejectedNews = async (req, res) => {
 };
 
 
+
 // Approve/Reject news (for editors)
 newsController.updateNewsStatus = async (req, res) => {
     try {
@@ -436,6 +437,7 @@ newsController.updateNewsStatus = async (req, res) => {
         await news.update({
             status,
             editorId,
+            approvedAt: status === 'approved' ? new Date() : null
         });
 
         // Get editor and journalist info for notifications
@@ -465,16 +467,108 @@ newsController.updateNewsStatus = async (req, res) => {
                         newsId: news.id.toString()
                     }
                 );
+                
+                // Send to news_updates topic (for FCM)
+                try {
+                    await notificationService.sendToTopic(
+                        'news_updates',
+                        'New Article Published',
+                        `${news.title}`,
+                        {
+                            type: 'new_published_article',
+                            newsId: news.id.toString()
+                        }
+                    );
+                    
+                    // If the article has state/district info, send to those topics too
+                    if (news.state) {
+                        const stateTopic = `state_${news.state.toLowerCase().replace(/\s+/g, '_')}`;
+                        await notificationService.sendToTopic(
+                            stateTopic,
+                            `New ${news.state} News`,
+                            `${news.title}`,
+                            {
+                                type: 'state_news',
+                                newsId: news.id.toString(),
+                                state: news.state
+                            }
+                        );
+                    }
+                    
+                    if (news.district) {
+                        const districtTopic = `district_${news.district.toLowerCase().replace(/\s+/g, '_')}`;
+                        await notificationService.sendToTopic(
+                            districtTopic,
+                            `New ${news.district} News`,
+                            `${news.title}`,
+                            {
+                                type: 'district_news',
+                                newsId: news.id.toString(),
+                                district: news.district
+                            }
+                        );
+                    }
+                    
+                    // Send to category-specific topic
+                    if (news.category) {
+                        const categoryTopic = `category_${news.category.toLowerCase().replace(/\s+/g, '_')}`;
+                        await notificationService.sendToTopic(
+                            categoryTopic,
+                            `New ${news.category} News`,
+                            `${news.title}`,
+                            {
+                                type: 'category_news',
+                                newsId: news.id.toString(),
+                                category: news.category
+                            }
+                        );
+                    }
+                    
+                    console.log('Topic notifications sent for newly approved article');
+                } catch (topicError) {
+                    console.error('Error sending topic notifications:', topicError);
+                    // Continue execution even if topic notification fails
+                }
+                
+                // Send to all users with FCM tokens
+                try {
+                    const allUsers = await User.findAll({
+                        where: {
+                            fcmToken: {
+                                [sequelize.Op.not]: null
+                            }
+                        },
+                        attributes: ['id', 'fcmToken']
+                    });
+                    
+                    if (allUsers.length > 0) {
+                        const userIds = allUsers.map(user => user.id);
+                        await notificationService.sendToUsers(
+                            userIds,
+                            'New Article Published',
+                            `${news.title}`,
+                            {
+                                type: 'new_published_article',
+                                newsId: news.id.toString()
+                            }
+                        );
+                        console.log(`Notification sent to ${userIds.length} users with FCM tokens`);
+                    }
+                } catch (userNotifError) {
+                    console.error('Error sending notifications to all users:', userNotifError);
+                    // Continue execution even if notification fails
+                }
             } else if (status === 'rejected') {
                 // Notify only the journalist about rejection
-            //     await notificationService.sendToUsers([news.journalistId], 
-            //         'Article Rejected', 
-            //         `Your article "${news.title}" has been rejected by ${editor.username}`,
-            //         {
-            //             type: 'article_rejected',
-            //             newsId: news.id.toString()
-            //         }
-            //     );
+                // Uncomment this if you want to send rejection notifications
+                // await notificationService.sendToUsers([news.journalistId], 
+                //     'Article Rejected', 
+                //     `Your article "${news.title}" has been rejected by ${editor.username}`,
+                //     {
+                //         type: 'article_rejected',
+                //         newsId: news.id.toString()
+                //     }
+                // );
             }
         } catch (notifError) {
             console.error('Notification error:', notifError);
@@ -1689,6 +1783,8 @@ newsController.adminEditPendingNews = async (req, res) => {
         );
     }
 };
+
+
 
 
 

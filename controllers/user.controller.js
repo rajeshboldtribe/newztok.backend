@@ -343,38 +343,44 @@ userController.getAdminProfile = async (req, res) => {
 
 
 // Update FCM token for push notifications
+// Update this function in your user controller
 userController.updateFcmToken = async (req, res) => {
-  try {
-    const userId = req.user.id || req.mwValue?.auth?.id;
-    const { fcmToken } = req.body;
-
-    if (!fcmToken) {
-      return res.error(
-        httpStatus.BAD_REQUEST,
-        false,
-        "FCM token is required"
-      );
+    try {
+        const userId = req.user.id || req.mwValue?.auth?.id;
+        const { fcmToken } = req.body;
+        
+        if (!fcmToken) {
+            return res.error(
+                httpStatus.BAD_REQUEST,
+                false,
+                "FCM token is required"
+            );
+        }
+        
+        // Use the notification service to update token and subscribe to topics
+        const result = await notificationService.updateUserToken(userId, fcmToken);
+        
+        if (!result.success) {
+            return res.error(
+                httpStatus.INTERNAL_SERVER_ERROR,
+                false,
+                result.message || "Error updating FCM token"
+            );
+        }
+        
+        return res.success(
+            httpStatus.OK,
+            true,
+            "FCM token updated successfully and subscribed to relevant topics"
+        );
+    } catch (error) {
+        console.error('Update FCM token error:', error);
+        return res.error(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            false,
+            "Error updating FCM token: " + error.message
+        );
     }
-
-    // Update the user's FCM token
-    await User.update(
-      { fcmToken },
-      { where: { id: userId } }
-    );
-
-    return res.success(
-      httpStatus.OK,
-      true,
-      "FCM token updated successfully"
-    );
-  } catch (error) {
-    console.error('Update FCM token error:', error);
-    return res.error(
-      httpStatus.INTERNAL_SERVER_ERROR,
-      false,
-      "Error updating FCM token: " + error.message
-    );
-  }
 };
 
 // Send notification to all audience when news is approved

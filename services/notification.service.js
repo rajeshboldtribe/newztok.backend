@@ -2,13 +2,19 @@ const admin = require('firebase-admin');
 const User = require('../models/user.model');
 const Notification = require('../models/notification.model');
 const sequelize = require('../config/db');
+const { Op } = require('sequelize'); // Add this import for Sequelize operators
 
 // Initialize Firebase Admin SDK if not already initialized
 if (!admin.apps.length) {
-    const serviceAccount = require('../config/firebase-service-account.json');
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    });
+    try {
+        const serviceAccount = require('../config/firebase-service-account.json');
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+    } catch (error) {
+        console.error('Firebase initialization error:', error);
+        // Continue without Firebase if there's an error
+    }
 }
 
 const notificationService = {};
@@ -21,7 +27,7 @@ notificationService.sendToUsers = async (userIds, title, body, data = {}) => {
             where: {
                 id: userIds,
                 fcmToken: {
-                    [sequelize.Op.not]: null
+                    [Op.not]: null // Use Op.not instead of sequelize.Op.not
                 }
             },
             attributes: ['id', 'fcmToken']
@@ -30,14 +36,6 @@ notificationService.sendToUsers = async (userIds, title, body, data = {}) => {
         if (users.length === 0) {
             console.log('No users with FCM tokens found');
             return { success: false, message: 'No users with FCM tokens found' };
-        }
-
-        const tokens = users.map(user => user.fcmToken);
-        const validTokens = tokens.filter(token => token && token.length > 0);
-
-        if (validTokens.length === 0) {
-            console.log('No valid FCM tokens found');
-            return { success: false, message: 'No valid FCM tokens found' };
         }
 
         // Store notifications in the database for each user
@@ -54,60 +52,97 @@ notificationService.sendToUsers = async (userIds, title, body, data = {}) => {
 
         await Promise.all(notificationPromises);
 
-        // Send FCM notifications
-        const message = {
-            notification: {
-                title,
-                body
-            },
-            data: {
-                ...data,
-                click_action: 'FLUTTER_NOTIFICATION_CLICK'
-            },
-            tokens: validTokens
-        };
-
-        const response = await admin.messaging().sendMulticast(message);
-        
-        // Handle response and track invalid tokens
-        let invalidTokensRemoved = 0;
-        
-        if (response.failureCount > 0) {
-            const failedTokens = [];
-            response.responses.forEach((resp, idx) => {
-                if (!resp.success) {
-                    failedTokens.push({
-                        token: validTokens[idx],
-                        error: resp.error
+        // If Firebase is initialized, send FCM notifications
+        if (admin.apps.length) {
+            const sendPromises = users.map(user => {
+                if (!user.fcmToken) return Promise.resolve();
+                
+                const message = {
+                    notification: {
+                        title,
+                        body
+                    },
+                    data: {
+                        ...data,
+                        click_action: 'FLUTTER_NOTIFICATION_CLICK'
+                    },
+                    token: user.fcmToken
+                };
+                
+                return admin.messaging().send(message)
+                    .catch(err => {
+                        console.error(`Error sending notification to user ${user.id}:`, err);
+                        return null;
                     });
-                    
-                    // Check if token is invalid
-                    if (resp.error.code === 'messaging/invalid-registration-token' || 
-                        resp.error.code === 'messaging/registration-token-not-registered') {
-                        // Find the user with this token and remove it
-                        const userWithToken = users.find(u => u.fcmToken === validTokens[idx]);
-                        if (userWithToken) {
-                            User.update({ fcmToken: null }, { where: { id: userWithToken.id } });
-                            invalidTokensRemoved++;
-                        }
-                    }
-                }
             });
             
-            console.log('List of tokens that caused failures:', failedTokens);
+            const results = await Promise.all(sendPromises);
+            const successfulSends = results.filter(Boolean).length;
+            
+            return {
+                success: true,
+                summary: {
+                    total: users.length,
+                    successful: successfulSends,
+                    failed: users.length - successfulSends
+                }
+            };
+        } else {
+            // If Firebase is not initialized, just return success for database storage
+            return {
+                success: true,
+                message: 'Notifications stored in database (Firebase not initialized)',
+                summary: {
+                    total: users.length,
+                    successful: 0,
+                    failed: 0
+                }
+            };
         }
-        
-        return {
-            success: true,
-            summary: {
-                total: validTokens.length,
-                successful: response.successCount,
-                failed: response.failureCount,
-                invalidTokensRemoved
-            }
-        };
     } catch (error) {
         console.error('Send notification error:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+// Simplified version of sendToTopic for testing
+notificationService.sendToTopic = async (topic, title, body, data = {}) => {
+    try {
+        // Store notification in database (without userId since it's topic-based)
+        await Notification.create({
+            title,
+            message: body,
+            type: data.type || 'topic',
+            data,
+            isRead: false
+        });
+
+        // If Firebase is initialized, send FCM notification to the topic
+        if (admin.apps.length) {
+            const message = {
+                notification: {
+                    title,
+                    body
+                },
+                data: {
+                    ...data,
+                    click_action: 'FLUTTER_NOTIFICATION_CLICK'
+                },
+                topic
+            };
+
+            const response = await admin.messaging().send(message);
+            
+            console.log(`Notification sent to topic ${topic}: ${response}`);
+            return { success: true, messageId: response };
+        } else {
+            return { 
+                success: true, 
+                message: 'Notification stored in database (Firebase not initialized)'
+            };
+        }
+    } catch (error) {
+        console.error('Send to topic error:', error);
         return { success: false, error: error.message };
     }
 };
@@ -117,21 +152,21 @@ notificationService.sendToRole = async (role, title, body, data = {}) => {
     try {
         // Get all users with the specified role
         const users = await User.findAll({
-            where: {
+            where: { 
                 role,
                 fcmToken: {
-                    [sequelize.Op.not]: null
+                    [Op.not]: null
                 }
             },
-            attributes: ['id', 'fcmToken']
+            attributes: ['id']
         });
-
-        if (users.length === 0) {
-            console.log(`No users with role ${role} and FCM tokens found`);
-            return { success: false, message: `No users with role ${role} and FCM tokens found` };
-        }
-
+        
         const userIds = users.map(user => user.id);
+        
+        if (userIds.length === 0) {
+            return { success: false, message: `No users with role '${role}' found` };
+        }
+        
         return await notificationService.sendToUsers(userIds, title, body, data);
     } catch (error) {
         console.error('Send notification to role error:', error);
@@ -139,42 +174,56 @@ notificationService.sendToRole = async (role, title, body, data = {}) => {
     }
 };
 
-// Send notification to a single device
-notificationService.sendToDevice = async (token, title, body, data = {}) => {
+// Add this new method to update user token and subscribe to topics
+notificationService.updateUserToken = async (userId, fcmToken) => {
     try {
-        if (!token) {
-            return { success: false, message: 'No FCM token provided' };
+        // Update the user's FCM token
+        await User.update({ fcmToken }, { where: { id: userId } });
+        
+        // Get user details to determine which topics to subscribe to
+        const user = await User.findByPk(userId, {
+            attributes: ['id', 'role', 'assignedState', 'assignedDistrict']
+        });
+        
+        if (!user) {
+            return { success: false, message: 'User not found' };
         }
-
-        const message = {
-            notification: {
-                title,
-                body
-            },
-            data: {
-                ...data,
-                click_action: 'FLUTTER_NOTIFICATION_CLICK'
-            },
-            token
-        };
-
-        const response = await admin.messaging().send(message);
-        return { success: true, messageId: response };
+        
+        // If Firebase is initialized, subscribe to relevant topics
+        if (admin.apps.length) {
+            try {
+                // Subscribe to general news updates
+                await admin.messaging().subscribeToTopic(fcmToken, 'news_updates');
+                
+                // Subscribe based on role
+                await admin.messaging().subscribeToTopic(fcmToken, `role_${user.role}`);
+                
+                // Subscribe to location-based topics if available
+                if (user.assignedState) {
+                    await admin.messaging().subscribeToTopic(fcmToken, `state_${user.assignedState.toLowerCase().replace(/\s+/g, '_')}`);
+                }
+                
+                if (user.assignedDistrict) {
+                    await admin.messaging().subscribeToTopic(fcmToken, `district_${user.assignedDistrict.toLowerCase().replace(/\s+/g, '_')}`);
+                }
+                
+                return { 
+                    success: true, 
+                    message: 'FCM token updated and subscribed to relevant topics' 
+                };
+            } catch (fcmError) {
+                console.error('FCM subscription error:', fcmError);
+                return { 
+                    success: true, 
+                    message: 'FCM token updated but topic subscription failed',
+                    error: fcmError.message
+                };
+            }
+        }
+        
+        return { success: true, message: 'FCM token updated (Firebase not initialized)' };
     } catch (error) {
-        console.error('Send to device error:', error);
-        
-        // Check if token is invalid
-        if (error.code === 'messaging/invalid-registration-token' || 
-            error.code === 'messaging/registration-token-not-registered') {
-            // Find the user with this token and remove it
-            await User.update({ fcmToken: null }, { where: { fcmToken: token } });
-            return { 
-                success: false, 
-                error: error.message, 
-                invalidToken: true 
-            };
-        }
-        
+        console.error('Update user token error:', error);
         return { success: false, error: error.message };
     }
 };
