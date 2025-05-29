@@ -16,5 +16,7 @@ router.get('/admin-profile', checkUserAuth, checkRole('admin'), userController.g
 //for push notification
 router.post('/update-fcm-token', checkUserAuth, userController.updateFcmToken);
 
- 
+// Account deletion
+router.delete('/delete-account', checkUserAuth, userController.deleteAccount);
+
 module.exports = router;

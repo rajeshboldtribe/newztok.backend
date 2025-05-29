@@ -424,4 +424,57 @@ userController.sendNewsApprovedNotification = async (newsId, newsTitle) => {
   }
 };
 
+// Delete user account
+userController.deleteAccount = async (req, res) => {
+    try {
+        const userId = req.user.id || req.mwValue?.auth?.id;
+        const { password } = req.body;
+
+        if (!password) {
+            return res.error(
+                httpStatus.BAD_REQUEST,
+                false,
+                "Password is required for account deletion"
+            );
+        }
+
+        // Find the user
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.error(
+                httpStatus.NOT_FOUND,
+                false,
+                "User not found"
+            );
+        }
+
+        // Verify password
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        if (!isValidPassword) {
+            return res.error(
+                httpStatus.UNAUTHORIZED,
+                false,
+                "Invalid password"
+            );
+        }
+
+        // Delete the user
+        await user.destroy();
+
+        return res.success(
+            httpStatus.OK,
+            true,
+            "Account deleted successfully"
+        );
+
+    } catch (error) {
+        console.error('Delete account error:', error);
+        return res.error(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            false,
+            "Error deleting account: " + error.message
+        );
+    }
+};
+
 module.exports = userController;
