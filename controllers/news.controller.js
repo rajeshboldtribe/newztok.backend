@@ -619,7 +619,7 @@ newsController.getNewsByCategory = async (req, res) => {
     }
 };
 
-//Get trending news (5 most recent approved news)
+//Get trending news (20 most recent approved news)
 newsController.getTrendingNews = async (req, res) => {
     try {
         const trendingNews = await News.findAll({
@@ -628,7 +628,7 @@ newsController.getTrendingNews = async (req, res) => {
                 {
                     model: User,
                     as: 'journalist',
-                    attributes: ['username']
+                    attributes: ['username','role']
                 }
             ],
             attributes: {
@@ -639,7 +639,7 @@ newsController.getTrendingNews = async (req, res) => {
                 ]
             },
             order: [['createdAt', 'DESC']],
-            limit: 5
+            limit: 20
         });
 
         return res.success(httpStatus.OK, true, "Trending news fetched successfully", trendingNews);
@@ -1783,16 +1783,5 @@ newsController.adminEditPendingNews = async (req, res) => {
         );
     }
 };
-
-
-
-
-
-
-
-
-
-
-
 
 module.exports=newsController;

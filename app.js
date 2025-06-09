@@ -46,7 +46,7 @@ app.use('/api/users',userRoutes);
 app.use('/api/versions',versionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/ads', adRoutes);
-app.use('/api/notifications', notificationRoutes); // Move this here
+app.use('/api/notifications', notificationRoutes); 
 app.use(handleNotFound);
 app.use(errorHandler);
 

@@ -134,8 +134,6 @@ interactionController.getPostStats = async (req, res) => {
 };
 
 //saved video status...................................
-
-// Toggle save status (save/unsave)
 interactionController.toggleSave = async (req, res) => {
     try {
         const { newsId } = req.params;

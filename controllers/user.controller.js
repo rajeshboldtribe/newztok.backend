@@ -343,7 +343,6 @@ userController.getAdminProfile = async (req, res) => {
 
 
 // Update FCM token for push notifications
-// Update this function in your user controller
 userController.updateFcmToken = async (req, res) => {
     try {
         const userId = req.user.id || req.mwValue?.auth?.id;
