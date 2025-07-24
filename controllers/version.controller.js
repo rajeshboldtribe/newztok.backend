@@ -1,87 +1,50 @@
-const httpStatus = require('../enums/httpStatusCode.enum');
-const Version = require('../models/version.model');
-const versionController = {};
+const { Document, Version } = require('../models');
 
-// Add new version
-versionController.addVersion = async (req, res) => {
-    try {
-        const { 
-            android_version,
-            android_version_code, 
-            ios_version,
-            ios_version_code, 
-            backend_version, 
-            release_date, 
-            is_forcefull_update 
-        } = req.body;
-        
-        // Validate required fields
-        if (!android_version || !android_version_code || !ios_version || !ios_version_code || !backend_version || !release_date) {
-            return res.error(
-                httpStatus.BAD_REQUEST,
-                false,
-                "All version fields, version codes, and release date are required"
-            );
-        }
-        
-        // Create new version
-        const newVersion = await Version.create({
-            android_version,
-            android_version_code,
-            ios_version,
-            ios_version_code,
-            backend_version,
-            release_date,
-            is_forcefull_update: is_forcefull_update || false,
-            created_by: req.user.id
-        });
-        
-        return res.success(
-            httpStatus.CREATED,
-            true,
-            "Version added successfully",
-            newVersion
-        );
-    } catch (error) {
-        console.error("Error adding version:", error);
-        return res.error(
-            httpStatus.INTERNAL_SERVER_ERROR,
-            false,
-            "Error adding version"
-        );
-    }
+exports.createDocument = async (req, res) => {
+  const { title, content } = req.body;
+  try {
+    const document = await Document.create({ title });
+    await Version.create({
+      content,
+      versionNumber: 1,
+      DocumentId: document.id,
+    });
+    res.status(201).json({ message: 'Document created', document });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
-// Get version details
-versionController.getVersionDetails = async (req, res) => {
-    try {
-        // Get the latest version
-        const latestVersion = await Version.findOne({
-            order: [['createdAt', 'DESC']]
-        });
-        
-        if (!latestVersion) {
-            return res.error(
-                httpStatus.NOT_FOUND,
-                false,
-                "No version information found"
-            );
-        }
-        
-        return res.success(
-            httpStatus.OK,
-            true,
-            "Version details retrieved successfully",
-            latestVersion
-        );
-    } catch (error) {
-        console.error("Error getting version details:", error);
-        return res.error(
-            httpStatus.INTERNAL_SERVER_ERROR,
-            false,
-            "Error retrieving version details"
-        );
-    }
+exports.updateDocument = async (req, res) => {
+  const { id } = req.params;
+  const { content } = req.body;
+  try {
+    const latest = await Version.findOne({
+      where: { DocumentId: id },
+      order: [['versionNumber', 'DESC']],
+    });
+
+    const newVersion = await Version.create({
+      content,
+      versionNumber: latest.versionNumber + 1,
+      DocumentId: id,
+    });
+
+    res.json({ message: 'New version created', newVersion });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
-module.exports = versionController;
+exports.getVersions = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const versions = await Version.findAll({
+      where: { DocumentId: id },
+      order: [['versionNumber', 'DESC']],
+    });
+    res.json(versions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

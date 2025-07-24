@@ -1,11 +1,9 @@
-const router = require('express').Router();
+const express = require('express');
+const router = express.Router();
 const versionController = require('../controllers/version.controller');
-const { checkUserAuth, checkRole } = require('../middlewares/auth.middleware');
 
-// Add new version (admin only)
-router.post('/add', checkUserAuth, checkRole('super_admin'), versionController.addVersion);
-
-// Get version details
-router.get('/get', versionController.getVersionDetails);
+router.post('/document', versionController.createDocument);
+router.put('/document/:id', versionController.updateDocument);
+router.get('/document/:id/versions', versionController.getVersions);
 
 module.exports = router;

@@ -6,6 +6,9 @@ const Share = require('./share.model');
 const Version = require('./version.model');
 const Saved = require('./saved.model');
 const Ad = require('./ad.model');
+const Document = require('./document.model');
+
+
 
 // User-News associations
 User.hasMany(News, {
@@ -119,5 +122,6 @@ module.exports = {
     Share,
     Version,
     Saved,
-    Ad
+    Ad,
+    Document
 };
