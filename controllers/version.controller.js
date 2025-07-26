@@ -1,50 +1,43 @@
-const { Document, Version } = require('../models');
+const db = require('../models');
+const Version = db.AppVersion;
 
-exports.createDocument = async (req, res) => {
-  const { title, content } = req.body;
-  try {
-    const document = await Document.create({ title });
-    await Version.create({
-      content,
-      versionNumber: 1,
-      DocumentId: document.id,
-    });
-    res.status(201).json({ message: 'Document created', document });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+
+//get latest version............
+exports.getVersion = async (req, res) => {
+try {
+const { platform } = req.params; 
+const version = await Version.findOne({ where: { platform } });
+
+if (!version) {
+  return res.status(404).json({ statusCode: 404, success: false, message: 'Version not found' });
+}
+
+return res.status(200).json({ statusCode: 200, success: true, data: { version } });
+} catch (error) {
+console.error('Error:', error);
+return res.status(500).json({ statusCode: 500, success: false, message: 'Internal Server Error' });
+}
 };
 
-exports.updateDocument = async (req, res) => {
-  const { id } = req.params;
-  const { content } = req.body;
-  try {
-    const latest = await Version.findOne({
-      where: { DocumentId: id },
-      order: [['versionNumber', 'DESC']],
-    });
 
-    const newVersion = await Version.create({
-      content,
-      versionNumber: latest.versionNumber + 1,
-      DocumentId: id,
-    });
+//update app version...................
+exports.updateVersion = async (req, res) => {
+try {
+const { platform, latestVersion, forceUpdate, changeLog } = req.body;
 
-    res.json({ message: 'New version created', newVersion });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+const version = await Version.findOne({ where: { platform } });
+if (!version) {
+  return res.status(404).json({ statusCode: 404, success: false, message: 'Version not found' });
+}
 
-exports.getVersions = async (req, res) => {
-  const { id } = req.params;
-  try {
-    const versions = await Version.findAll({
-      where: { DocumentId: id },
-      order: [['versionNumber', 'DESC']],
-    });
-    res.json(versions);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+version.latestVersion = latestVersion;
+version.forceUpdate = forceUpdate;
+version.changeLog = changeLog;
+await version.save();
+
+return res.status(200).json({ statusCode: 200, success: true, message: 'Version updated successfully' });
+} catch (error) {
+console.error('Update Error:', error);
+return res.status(500).json({ statusCode: 500, success: false, message: 'Failed to update version' });
+}
 };

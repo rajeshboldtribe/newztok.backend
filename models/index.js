@@ -3,10 +3,9 @@ const News = require('./news.model');
 const Like = require('./like.model');
 const Comment = require('./comment.model');
 const Share = require('./share.model');
-const Version = require('./version.model');
+const AppVersion = require('./appversion');
 const Saved = require('./saved.model');
 const Ad = require('./ad.model');
-const Document = require('./document.model');
 
 
 
@@ -120,8 +119,8 @@ module.exports = {
     Like,
     Comment,
     Share,
-    Version,
+    AppVersion,
     Saved,
     Ad,
-    Document
+    
 };

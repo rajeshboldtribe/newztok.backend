@@ -2,8 +2,7 @@ const express = require('express');
 const router = express.Router();
 const versionController = require('../controllers/version.controller');
 
-router.post('/document', versionController.createDocument);
-router.put('/document/:id', versionController.updateDocument);
-router.get('/document/:id/versions', versionController.getVersions);
+router.get('/:platform', versionController.getVersion);  
+router.post('/update', versionController.updateVersion); //   this for admin only
 
 module.exports = router;
