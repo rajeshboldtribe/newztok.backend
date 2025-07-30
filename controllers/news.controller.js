@@ -5,7 +5,7 @@ const sequelize = require("../config/db");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const {Op} = require ("sequelize");
+const {Op, json} = require ("sequelize");
 const notificationService = require("../services/notification.service");
 
 const newsController = {};
@@ -49,7 +49,7 @@ newsController.createNews = async (req, res) => {
   try {
     // Use fields to handle both image and video uploads with different field names
     const uploadFields = upload.fields([
-      { name: "featuredImage", maxCount: 1 },
+      { name: "featuredImage", maxCount: 6 },
       { name: "video", maxCount: 1 },
     ]);
 
@@ -134,11 +134,13 @@ newsController.createNews = async (req, res) => {
           if (
             req.files &&
             req.files.featuredImage &&
-            req.files.featuredImage[0]
+            req.files.featuredImage.length > 0
           ) {
-            const file = req.files.featuredImage[0];
-            newsData.featuredImage = `/uploads/images/${file.filename}`;
-            newsData.thumbnailUrl = newsData.featuredImage; // Use same image for thumbnail
+            const images = req.files.featuredImage;
+            newsData.featuredImage = JSON.stringify(
+              images.map((file) => `/uploads/images/${file.filename}`)
+            );
+            newsData.thumbnailUrl = `/uploads/images/${images[0].filename}`;
           }
         } else if (contentType === "video") {
           if (youtubeUrl) {
