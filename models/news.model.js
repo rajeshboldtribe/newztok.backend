@@ -1,4 +1,4 @@
-const { DataTypes, json } = require('sequelize');
+const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
 const User = require('./user.model');
 
@@ -73,17 +73,22 @@ const News = sequelize.define('news', {
         allowNull: true
     },
     featuredImage: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-        get() {
-            const rawValue = this.getDataValue('featuredImage');
-            try{
-                return JSON.parse(rawValue);
-            }catch(e){
-                return[];
-            }
-        }
+        type: DataTypes.STRING, 
+        allowNull: true
     },
+    
+   additionalImage: {
+  type: DataTypes.TEXT,
+  get() {
+    const value = this.getDataValue("additionalImage");
+    return value ? JSON.parse(value) : [];
+  },
+  set(value) {
+    this.setDataValue("additionalImage", JSON.stringify(value));
+  }
+},
+
+
     thumbnailUrl: {
         type: DataTypes.STRING,
         allowNull: true

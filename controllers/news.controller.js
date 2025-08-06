@@ -5,7 +5,7 @@ const sequelize = require("../config/db");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const {Op, json} = require ("sequelize");
+const {Op} = require ("sequelize");
 const notificationService = require("../services/notification.service");
 
 const newsController = {};
@@ -13,21 +13,30 @@ const newsController = {};
 // Configure storage for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    let uploadPath = "";
-    if (file.fieldname === "featuredImage") {
-      uploadPath = path.join(__dirname, "../uploads/images");
-    } else if (file.fieldname === "video") {
-      uploadPath = path.join(__dirname, "../uploads/videos");
-    }
+  let uploadPath = "";
 
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
+  if (
+    file.fieldname === "featuredImage" ||
+    file.fieldname === "additionalImage"
+  ) {
+    uploadPath = path.join(__dirname, "../uploads/images");
+  } else if (file.fieldname === "video") {
+    uploadPath = path.join(__dirname, "../uploads/videos");
+  }
 
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
+  //  Error handling if field is unrecognized
+  if (!uploadPath) {
+    return cb(new Error(`Invalid upload field: ${file.fieldname}`));
+  }
+
+  // Create directory if it doesn't exist
+  if (!fs.existsSync(uploadPath)) {
+    fs.mkdirSync(uploadPath, { recursive: true });
+  }
+
+  cb(null, uploadPath);
+},
+ filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(
       null,
@@ -43,81 +52,43 @@ const upload = multer({
   },
 });
 
-// Create new news post (for journalists,editor)
-
+// Create new news post (for journalists, editor)
 newsController.createNews = async (req, res) => {
   try {
-    // Use fields to handle both image and video uploads with different field names
     const uploadFields = upload.fields([
-      { name: "featuredImage", maxCount: 6 },
+      { name: "featuredImage", maxCount: 1 },
+      { name: "additionalImage", maxCount: 6 },
       { name: "video", maxCount: 1 },
     ]);
 
     uploadFields(req, res, async function (err) {
       if (err) {
         console.error("Upload error:", err);
-        // Check for specific multer errors
-        if (err instanceof multer.MulterError) {
-          if (err.code === "LIMIT_FILE_SIZE") {
-            return res.error(
-              httpStatus.BAD_REQUEST,
-              false,
-              "File too large",
-              "Maximum file size is 100MB. Please upload a smaller file."
-            );
-          }
+        if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+          return res.error(
+            httpStatus.BAD_REQUEST,
+            false,
+            "File too large",
+            "Maximum file size is 100MB. Please upload a smaller file."
+          );
         }
-        return res.error(
-          httpStatus.BAD_REQUEST,
-          false,
-          "Error uploading file",
-          err.message
-        );
+        return res.error(httpStatus.BAD_REQUEST, false, "Error uploading file", err.message);
       }
 
       try {
-        // Extract values from request body and clean them
-        let {
-          title,
-          content,
-          category,
-          contentType,
-          youtubeUrl,
-          state,
-          district,
-        } = req.body;
+        let { title, content, category, contentType, youtubeUrl, state, district } = req.body;
 
-        // Remove any surrounding quotes from string values
-        title = title ? title.replace(/^["'](.*)["']$/, "$1") : title;
-        content = content ? content.replace(/^["'](.*)["']$/, "$1") : content;
-        category = category
-          ? category.replace(/^["'](.*)["']$/, "$1")
-          : category;
-        contentType = contentType
-          ? contentType.replace(/^["'](.*)["']$/, "$1")
-          : contentType;
-        youtubeUrl = youtubeUrl
-          ? youtubeUrl.replace(/^["'](.*)["']$/, "$1")
-          : youtubeUrl;
-        state = state ? state.replace(/^["'](.*)["']$/, "$1") : state;
-        district = district
-          ? district.replace(/^["'](.*)["']$/, "$1")
-          : district;
+        const clean = (value) => (value ? value.replace(/^["'](.*)["']$/, "$1") : value);
+        title = clean(title);
+        content = clean(content);
+        category = clean(category);
+        contentType = clean(contentType);
+        youtubeUrl = clean(youtubeUrl);
+        state = clean(state);
+        district = clean(district);
 
         const journalistId = req.mwValue.auth.id;
 
-        console.log("Cleaned request body:", {
-          title,
-          content,
-          category,
-          contentType,
-          youtubeUrl,
-          state,
-          district,
-        });
-        console.log("Files:", req.files);
-
-        // Create news object with common fields
         const newsData = {
           title,
           content,
@@ -129,53 +100,40 @@ newsController.createNews = async (req, res) => {
           district: district || null,
         };
 
-        // Handle content type specific fields
         if (contentType === "standard") {
-          if (
-            req.files &&
-            req.files.featuredImage &&
-            req.files.featuredImage.length > 0
-          ) {
-            const images = req.files.featuredImage;
-            newsData.featuredImage = JSON.stringify(
-              images.map((file) => `/uploads/images/${file.filename}`)
-            );
-            newsData.thumbnailUrl = `/uploads/images/${images[0].filename}`;
+          if (req.files?.featuredImage?.[0]) {
+            const file = req.files.featuredImage[0];
+            newsData.featuredImage = `/uploads/images/${file.filename}`;
+            newsData.thumbnailUrl = newsData.featuredImage;
+          }
+
+          if (req.files?.additionalImage) {
+            const images = req.files.additionalImage.map((img) => `/uploads/images/${img.filename}`);
+            
+            newsData.additionalImage = images;
           }
         } else if (contentType === "video") {
           if (youtubeUrl) {
             newsData.youtubeUrl = youtubeUrl;
-            // Extract YouTube thumbnail if available
             const videoId = youtubeUrl.match(
               /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
             );
-            if (videoId && videoId[1]) {
+            if (videoId?.[1]) {
               newsData.thumbnailUrl = `https://img.youtube.com/vi/${videoId[1]}/hqdefault.jpg`;
             }
-          } else if (req.files && req.files.video && req.files.video[0]) {
+          } else if (req.files?.video?.[0]) {
             const file = req.files.video[0];
             newsData.videoPath = `/uploads/videos/${file.filename}`;
           }
         }
 
-        // Validate required fields
         if (!title || !content || !category) {
-          return res.error(
-            httpStatus.BAD_REQUEST,
-            false,
-            "Title, content, and category are required"
-          );
+          return res.error(httpStatus.BAD_REQUEST, false, "Title, content, and category are required");
         }
 
-        // Create the news
         const news = await News.create(newsData);
+        const journalist = await User.findByPk(journalistId, { attributes: ["username"] });
 
-        // Get journalist info for notification
-        const journalist = await User.findByPk(journalistId, {
-          attributes: ["username"],
-        });
-
-        // Send notification to all editors about new article
         try {
           await notificationService.sendToRole(
             "editor",
@@ -188,31 +146,30 @@ newsController.createNews = async (req, res) => {
           );
         } catch (notifError) {
           console.error("Notification error:", notifError);
-          // Continue execution even if notification fails
         }
 
-        return res.success(
-          httpStatus.CREATED,
-          true,
-          "News created successfully",
-          news
-        );
+        
+        const newsPlain = news.get({ plain: true });
+
+        if (typeof newsPlain.additionalImage === "string") {
+          try {
+            newsPlain.additionalImage = JSON.parse(newsPlain.additionalImage);
+          } catch {
+            newsPlain.additionalImage = [];
+          }
+        } else if (!Array.isArray(newsPlain.additionalImage)) {
+          newsPlain.additionalImage = [];
+        }
+
+        return res.success(httpStatus.CREATED, true, "News created successfully", newsPlain);
       } catch (error) {
         console.error("Create news error:", error);
-        return res.error(
-          httpStatus.INTERNAL_SERVER_ERROR,
-          false,
-          "Error creating news: " + error.message
-        );
+        return res.error(httpStatus.INTERNAL_SERVER_ERROR, false, "Error creating news: " + error.message);
       }
     });
   } catch (error) {
     console.error("Create news outer error:", error);
-    return res.error(
-      httpStatus.INTERNAL_SERVER_ERROR,
-      false,
-      "Error processing request: " + error.message
-    );
+    return res.error(httpStatus.INTERNAL_SERVER_ERROR, false, "Error processing request: " + error.message);
   }
 };
 
@@ -287,6 +244,7 @@ newsController.getPublicNews = async (req, res) => {
         "updatedAt",
         "state",
         "district",
+        "additionalImage"
       ],
       order: [["createdAt", "DESC"]],
     });
@@ -939,8 +897,6 @@ newsController.getEditorApprovedNews = async (req, res) => {
         );
     }
 };
-
-
 
 // Update the News .................................................
 newsController.updateNews = async (req, res) => {
