@@ -100,17 +100,17 @@ newsController.createNews = async (req, res) => {
           district: district || null,
         };
 
+        if (req.files?.additionalImage) {
+          const images = req.files.additionalImage.map((img) => `/uploads/images/${img.filename}`);
+          // Ensure images is a valid array before assignment
+          newsData.additionalImage = Array.isArray(images) ? images : [];
+        }
+
         if (contentType === "standard") {
           if (req.files?.featuredImage?.[0]) {
             const file = req.files.featuredImage[0];
             newsData.featuredImage = `/uploads/images/${file.filename}`;
             newsData.thumbnailUrl = newsData.featuredImage;
-          }
-
-          if (req.files?.additionalImage) {
-            const images = req.files.additionalImage.map((img) => `/uploads/images/${img.filename}`);
-            
-            newsData.additionalImage = images;
           }
         } else if (contentType === "video") {
           if (youtubeUrl) {
@@ -1295,6 +1295,7 @@ newsController.getNewsByState = async (req, res) => {
         "district",
         "createdAt",
         "updatedAt",
+        "additionalImage",
         [
           sequelize.literal(
             "(SELECT COUNT(*) FROM likes WHERE likes.newsId = news.id)"
@@ -1769,6 +1770,7 @@ newsController.getNewsByStateAndDistrict = async (req, res) => {
         "district",
         "createdAt",
         "updatedAt",
+        "additionalImage",
         [
           sequelize.literal(
             "(SELECT COUNT(*) FROM likes WHERE likes.newsId = news.id)"
@@ -1926,7 +1928,7 @@ newsController.reEditApprovedNews = async (req, res) => {
   }
 };
 
-// Admin edit pending news before approval/reject
+// admin edit pending news before approval/reject
 newsController.adminEditPendingNews = async (req, res) => {
   try {
     const { newsId } = req.params;
@@ -1960,6 +1962,7 @@ newsController.adminEditPendingNews = async (req, res) => {
     const uploadFields = upload.fields([
       { name: "featuredImage", maxCount: 1 },
       { name: "video", maxCount: 1 },
+      { name:"additionalImage",maxCount:6}
     ]);
 
     uploadFields(req, res, async function (err) {
@@ -2010,6 +2013,21 @@ newsController.adminEditPendingNews = async (req, res) => {
           district: district !== undefined ? district : news.district,
           adminId: adminId, // Track which admin edited it
         };
+
+        //handle additional images upload
+        if(req.files?.additionalImage){
+          //delete old additional images
+          if(news.additionalImage && Array.isArray(news.additionalImage)){
+            news.additionalImage.forEach(imgPath =>{ const oldImagePath =path.join(__dirname,"..",imgPath);
+              if (fs.existsSync(oldImagePath)){
+                fs.unlinkSync(oldImagePath);
+              }
+            })
+          }
+
+          const images = req.files.additionalImage.map((img)=>`/uploads/images/${img.filename}`);
+          newsData.additionalImage =Array.isArray(images) ? images : [];
+        }
 
         // Handle content type specific fields
         if (contentType === "standard" || news.contentType === "standard") {
@@ -2079,6 +2097,19 @@ newsController.adminEditPendingNews = async (req, res) => {
             },
           ],
         });
+
+        
+        // Handle additionalImage parsing for response
+        const newsPlain = updatedNews.get({ plain: true });
+        if (typeof newsPlain.additionalImage === "string") {
+          try {
+            newsPlain.additionalImage = JSON.parse(newsPlain.additionalImage);
+          } catch {
+            newsPlain.additionalImage = [];
+          }
+        } else if (!Array.isArray(newsPlain.additionalImage)) {
+          newsPlain.additionalImage = [];
+        }
 
         // Notify the journalist that their article was edited by admin
         try {
