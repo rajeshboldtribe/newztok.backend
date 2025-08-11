@@ -1229,6 +1229,7 @@ newsController.getFeaturedNews = async (req, res) => {
         "isFeatured",
         "state",
         "district",
+        "additionalImage"
       ],
       order: [["updatedAt", "DESC"]],
     });
@@ -1430,6 +1431,7 @@ newsController.adminCreateNews = async (req, res) => {
     // Use fields to handle both image and video uploads with different field names
     const uploadFields = upload.fields([
       { name: "featuredImage", maxCount: 1 },
+      { name: "additionalImage", maxCount: 6 },
       { name: "video", maxCount: 1 },
     ]);
 
@@ -1456,20 +1458,20 @@ newsController.adminCreateNews = async (req, res) => {
         } = req.body;
 
         // Remove any surrounding quotes from string values
-        title = title ? title.replace(/^["'](.*)["']$/, "$1") : title;
-        content = content ? content.replace(/^["'](.*)["']$/, "$1") : content;
+        title = title ? title.replace(/^["'](.*)["\']$/, "$1") : title;
+        content = content ? content.replace(/^["'](.*)["\']$/, "$1") : content;
         category = category
-          ? category.replace(/^["'](.*)["']$/, "$1")
+          ? category.replace(/^["'](.*)["\']$/, "$1")
           : category;
         contentType = contentType
-          ? contentType.replace(/^["'](.*)["']$/, "$1")
+          ? contentType.replace(/^["'](.*)["\']$/, "$1")
           : contentType;
         youtubeUrl = youtubeUrl
-          ? youtubeUrl.replace(/^["'](.*)["']$/, "$1")
+          ? youtubeUrl.replace(/^["'](.*)["\']$/, "$1")
           : youtubeUrl;
-        state = state ? state.replace(/^["'](.*)["']$/, "$1") : state;
+        state = state ? state.replace(/^["'](.*)["\']$/, "$1") : state;
         district = district
-          ? district.replace(/^["'](.*)["']$/, "$1")
+          ? district.replace(/^["'](.*)["\']$/, "$1")
           : district;
 
         const adminId = req.mwValue.auth.id;
@@ -1497,6 +1499,13 @@ newsController.adminCreateNews = async (req, res) => {
           state: state || null,
           district: district || null,
         };
+
+        // Handle additionalImage uploads (added this section)
+        if (req.files?.additionalImage) {
+          const images = req.files.additionalImage.map((img) => `/uploads/images/${img.filename}`);
+          // Ensure images is a valid array before assignment
+          newsData.additionalImage = Array.isArray(images) ? images : [];
+        }
 
         // Handle content type specific fields
         if (contentType === "standard") {
@@ -1537,11 +1546,24 @@ newsController.adminCreateNews = async (req, res) => {
         // Create the news
         const news = await News.create(newsData);
 
+        // Format the response to handle additionalImage (added this section)
+        const newsPlain = news.get({ plain: true });
+
+        if (typeof newsPlain.additionalImage === "string") {
+          try {
+            newsPlain.additionalImage = JSON.parse(newsPlain.additionalImage);
+          } catch {
+            newsPlain.additionalImage = [];
+          }
+        } else if (!Array.isArray(newsPlain.additionalImage)) {
+          newsPlain.additionalImage = [];
+        }
+
         return res.success(
           httpStatus.CREATED,
           true,
           "News created successfully by admin",
-          news
+          newsPlain
         );
       } catch (error) {
         console.error("Admin create news error:", error);
