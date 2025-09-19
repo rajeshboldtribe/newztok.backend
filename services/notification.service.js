@@ -18,7 +18,6 @@ if (!admin.apps.length) {
 }
 
 const notificationService = {};
-
 // Send notification to specific users
 notificationService.sendToUsers = async (userIds, title, body, data = {}) => {
     try {
@@ -27,7 +26,7 @@ notificationService.sendToUsers = async (userIds, title, body, data = {}) => {
             where: {
                 id: userIds,
                 fcmToken: {
-                    [Op.not]: null // Use Op.not instead of sequelize.Op.not
+                    [Op.not]: null
                 }
             },
             attributes: ['id', 'fcmToken']
@@ -56,7 +55,7 @@ notificationService.sendToUsers = async (userIds, title, body, data = {}) => {
         if (admin.apps.length) {
             const sendPromises = users.map(user => {
                 if (!user.fcmToken) return Promise.resolve();
-                
+
                 const message = {
                     notification: {
                         title,
@@ -68,17 +67,31 @@ notificationService.sendToUsers = async (userIds, title, body, data = {}) => {
                     },
                     token: user.fcmToken
                 };
-                
+
                 return admin.messaging().send(message)
-                    .catch(err => {
+                    .catch(async (err) => {
                         console.error(`Error sending notification to user ${user.id}:`, err);
+
+                        // Clean up expired/invalid tokens
+                        if (
+                            err.code === 'messaging/invalid-argument' ||
+                            err.code === 'messaging/registration-token-not-registered' ||
+                            err.code === 'messaging/invalid-registration-token'
+                        ) {
+                            await User.update(
+                                { fcmToken: null },
+                                { where: { id: user.id } }
+                            );
+                            console.log(`Removed expired FCM token for user ${user.id}`);
+                        }
+
                         return null;
                     });
             });
-            
+
             const results = await Promise.all(sendPromises);
             const successfulSends = results.filter(Boolean).length;
-            
+
             return {
                 success: true,
                 summary: {
