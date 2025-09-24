@@ -5,7 +5,7 @@ const sequelize = require("../config/db");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const {Op} = require ("sequelize");
+const { Op } = require ("sequelize");
 const notificationService = require("../services/notification.service");
 
 const newsController = {};
@@ -727,7 +727,7 @@ newsController.getNewsByCategory = async (req, res) => {
   }
 };
 
-//Get trending news (20 most recent approved news)
+//Get trending news (30 most recent approved news)
 newsController.getTrendingNews = async (req, res) => {
   try {
     const trendingNews = await News.findAll({
@@ -1231,7 +1231,8 @@ newsController.getFeaturedNews = async (req, res) => {
         "district",
         "additionalImage"
       ],
-      order: [["updatedAt", "DESC"]],
+      order: [["updatedAt", "DESC"]], 
+      limit:50
     });
 
     return res.success(

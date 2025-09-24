@@ -24,10 +24,8 @@ notificationService.sendToUsers = async (userIds, title, body, data = {}) => {
         // Get FCM tokens for the specified users
         const users = await User.findAll({
             where: {
-                id: userIds,
-                fcmToken: {
-                    [Op.not]: null
-                }
+               id: { [Op.in]: userIds },   
+               fcmToken: { [Op.not]: null }
             },
             attributes: ['id', 'fcmToken']
         });
