@@ -526,7 +526,6 @@ authController.updateUserProfile = async (req, res) => {
 };
 
 //logOut controller...............
-
 authController.logout = async (req, res) => {
     try {    
         return res.success(

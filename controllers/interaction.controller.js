@@ -8,32 +8,41 @@ const interactionController = {};
 interactionController.toggleLike = async (req, res) => {
     try {
         const { newsId } = req.params;
-        const userId = req.mwValue.auth.id;
+
+        // Commenting out userId extraction (for non-logged-in users)
+        // const userId = req.mwValue.auth.id;
 
         const news = await News.findByPk(newsId);
         if (!news) {
             return res.error(httpStatus.NOT_FOUND, false, "News not found");
         }
 
-        const existingLike = await Like.findOne({
-            where: { userId, newsId }
-        });
+        // For non-logged-in users, we can use IP or a temp session ID if you still need to track
+        // Otherwise, just return a generic success message without saving in DB
+        return res.success(httpStatus.OK, true, "News liked (guest user)");
+        
+        // ---- If you still want to store likes per IP (optional) ----
+        /*
+        const userIdentifier = req.ip; // or req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+        const existingLike = await Like.findOne({ where: { newsId, userIdentifier } });
 
         if (existingLike) {
             await existingLike.destroy();
-            return res.success(httpStatus.OK, true, "News unliked successfully");
+            return res.success(httpStatus.OK, true, "News unliked successfully (guest)");
         }
 
-        await Like.create({ userId, newsId });
-        return res.success(httpStatus.CREATED, true, "News liked successfully");
+        await Like.create({ newsId, userIdentifier });
+        return res.success(httpStatus.CREATED, true, "News liked successfully (guest)");
+        */
     } catch (error) {
         console.error('Toggle like error:', error);
         return res.error(httpStatus.INTERNAL_SERVER_ERROR, false, "Error processing like", error);
     }
 };
 
+
 // Add comment
-interactionController.addComment = async (req, res) => {
+interactionController.addComment = async (req, res) => {    q
     try {
         const { newsId } = req.params;
         const { content } = req.body;
