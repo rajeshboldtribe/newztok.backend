@@ -1,22 +1,37 @@
-const router = require('express').Router();
-const userController = require('../controllers/user.controller');
-const { checkUserAuth, checkRole } = require('../middlewares/auth.middleware');
-const notificationService = require('../services/notification.service'); 
-const User = require('../models/user.model'); 
+const router = require("express").Router();
+const userController = require("../controllers/user.controller");
+const { checkUserAuth, checkRole } = require("../middlewares/auth.middleware");
+const notificationService = require("../services/notification.service");
+const User = require("../models/user.model");
 
 // Editor routes
-router.get('/assigned-journalists', checkUserAuth, checkRole('editor'), userController.getAssignedJournalists);
-router.get('/editor-profile', checkUserAuth, checkRole('editor'), userController.getEditorProfile);
+router.get(
+  "/assigned-journalists",
+  checkUserAuth,
+  checkRole("editor"),
+  userController.getAssignedJournalists,
+);
+router.get(
+  "/editor-profile",
+  checkUserAuth,
+  checkRole("editor"),
+  userController.getEditorProfile,
+);
 
 //journalist's own profile
-router.get('/my-profile', checkUserAuth, userController.getMyProfile);
+router.get("/my-profile", checkUserAuth, userController.getMyProfile);
 
 //admin profile
-router.get('/admin-profile', checkUserAuth, checkRole('admin'), userController.getAdminProfile);
+router.get(
+  "/admin-profile",
+  checkUserAuth,
+  checkRole("admin"),
+  userController.getAdminProfile,
+);
 //for push notification
-router.post('/update-fcm-token', checkUserAuth, userController.updateFcmToken);
+router.post("/update-fcm-token", checkUserAuth, userController.updateFcmToken);
 
 // Account deletion
-router.delete('/delete-account', checkUserAuth, userController.deleteAccount);
+router.delete("/delete-account", checkUserAuth, userController.deleteAccount);
 
 module.exports = router;

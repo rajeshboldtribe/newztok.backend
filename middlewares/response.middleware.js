@@ -7,7 +7,7 @@ const sendResponse = (req, res, next) => {
     message,
     data = "",
     additionalFieldName = "",
-    additionalFieldValue = ""
+    additionalFieldValue = "",
   ) => {
     res
       .status(statusCode)
@@ -18,8 +18,8 @@ const sendResponse = (req, res, next) => {
           message,
           data,
           additionalFieldName,
-          additionalFieldValue
-        )
+          additionalFieldValue,
+        ),
       );
   };
 

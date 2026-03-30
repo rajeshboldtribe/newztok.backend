@@ -1,126 +1,122 @@
-const User = require('./user.model');
-const News = require('./news.model');
-const Like = require('./like.model');
-const Comment = require('./comment.model');
-const Share = require('./share.model');
-const AppVersion = require('./appversion');
-const Saved = require('./saved.model');
-const Ad = require('./ad.model');
-
-
+const User = require("./user.model");
+const News = require("./news.model");
+const Like = require("./like.model");
+const Comment = require("./comment.model");
+const Share = require("./share.model");
+const AppVersion = require("./appversion");
+const Saved = require("./saved.model");
+const Ad = require("./ad.model");
 
 // User-News associations
 User.hasMany(News, {
-    foreignKey: 'journalistId',
-    as: 'writtenNews'
+  foreignKey: "journalistId",
+  as: "writtenNews",
 });
 
 User.hasMany(News, {
-    foreignKey: 'editorId',
-    as: 'reviewedNews'
+  foreignKey: "editorId",
+  as: "reviewedNews",
 });
 
 User.hasMany(News, {
-    foreignKey: 'adminId',
-    as: 'adminCreatedNews'
+  foreignKey: "adminId",
+  as: "adminCreatedNews",
 });
 
 News.belongsTo(User, {
-    foreignKey: 'journalistId',
-    as: 'journalist'  
+  foreignKey: "journalistId",
+  as: "journalist",
 });
 
 News.belongsTo(User, {
-    foreignKey: 'editorId',
-    as: 'editor'
+  foreignKey: "editorId",
+  as: "editor",
 });
 
 News.belongsTo(User, {
-    foreignKey: 'adminId',
-    as: 'admin'  
+  foreignKey: "adminId",
+  as: "admin",
 });
 
 News.belongsTo(User, {
-    foreignKey: 'featuredBy',
-    as: 'featuredByEditor'
+  foreignKey: "featuredBy",
+  as: "featuredByEditor",
 });
 
 // Like associations
 News.hasMany(Like, {
-    foreignKey: 'newsId',
-    as: 'likes'
+  foreignKey: "newsId",
+  as: "likes",
 });
 
 User.hasMany(Like, {
-    foreignKey: 'userId',
-    as: 'userLikes'
+  foreignKey: "userId",
+  as: "userLikes",
 });
 
 Like.belongsTo(News, {
-    foreignKey: 'newsId'
+  foreignKey: "newsId",
 });
 
 Like.belongsTo(User, {
-    foreignKey: 'userId'
+  foreignKey: "userId",
 });
 
 // Comment associations
 News.hasMany(Comment, {
-    foreignKey: 'newsId',
-    as: 'comments'
+  foreignKey: "newsId",
+  as: "comments",
 });
 
 User.hasMany(Comment, {
-    foreignKey: 'userId',
-    as: 'userComments'
+  foreignKey: "userId",
+  as: "userComments",
 });
 
 Comment.belongsTo(News, {
-    foreignKey: 'newsId'
+  foreignKey: "newsId",
 });
 
 Comment.belongsTo(User, {
-    foreignKey: 'userId'
+  foreignKey: "userId",
 });
 
 // Share associations
 News.hasMany(Share, {
-    foreignKey: 'newsId',
-    as: 'shares'
+  foreignKey: "newsId",
+  as: "shares",
 });
 
 User.hasMany(Share, {
-    foreignKey: 'userId',
-    as: 'userShares'
+  foreignKey: "userId",
+  as: "userShares",
 });
 
 Share.belongsTo(News, {
-    foreignKey: 'newsId'
+  foreignKey: "newsId",
 });
 
 Share.belongsTo(User, {
-    foreignKey: 'userId'
+  foreignKey: "userId",
 });
 
 Ad.belongsTo(User, {
-    foreignKey: 'createdBy',
-    as: 'creator'
+  foreignKey: "createdBy",
+  as: "creator",
 });
 
 User.hasMany(Ad, {
-    foreignKey: 'createdBy',
-    as: 'createdAds'
+  foreignKey: "createdBy",
+  as: "createdAds",
 });
 
-
 module.exports = {
-    User,
-    News,
-    Like,
-    Comment,
-    Share,
-    AppVersion,
-    Saved,
-    Ad,
-    
+  User,
+  News,
+  Like,
+  Comment,
+  Share,
+  AppVersion,
+  Saved,
+  Ad,
 };

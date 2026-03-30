@@ -23,7 +23,7 @@ helpers.parseJsonToObj = (str) => {
 helpers.hash = (str) => {
   if (typeof str === "string" && str.length > 0) {
     return CryptoJS.HmacSHA256(str, process.env.APP_SUPER_SECRET_KEY).toString(
-      CryptoJS.enc.Hex
+      CryptoJS.enc.Hex,
     );
   } else {
     return false;
@@ -50,7 +50,7 @@ helpers.createRandomString = (strLength) => {
 
     for (let i = 0; i < strLength; i++)
       text += possibleCharacters.charAt(
-        Math.floor(Math.random() * possibleCharacters.length)
+        Math.floor(Math.random() * possibleCharacters.length),
       );
     return text;
   } else {
@@ -60,17 +60,13 @@ helpers.createRandomString = (strLength) => {
 
 //Verify JWT Token
 helpers.verifyToken = (id, callback) => {
-  jwt.verify(
-      id,
-      process.env.APP_SUPER_SECRET_KEY, 
-      function (err, data) {
-          if (!err && data) {
-              callback(err, data);
-          } else {
-              callback(err, false);
-          }
-      }
-  );
+  jwt.verify(id, process.env.APP_SUPER_SECRET_KEY, function (err, data) {
+    if (!err && data) {
+      callback(err, data);
+    } else {
+      callback(err, false);
+    }
+  });
 };
 
 //Generate Current Timestamp
@@ -141,7 +137,7 @@ helpers.responseWithToken = (
   message,
   additionalFieldName = "",
   additionalFieldValue = "",
-  data = ""
+  data = "",
 ) => {
   let response = {};
   if (statusCode) {

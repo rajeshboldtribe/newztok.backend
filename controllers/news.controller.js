@@ -5,7 +5,7 @@ const sequelize = require("../config/db");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const { Op } = require ("sequelize");
+const { Op } = require("sequelize");
 const notificationService = require("../services/notification.service");
 
 const newsController = {};
@@ -13,34 +13,34 @@ const newsController = {};
 // Configure storage for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-  let uploadPath = "";
+    let uploadPath = "";
 
-  if (
-    file.fieldname === "featuredImage" ||
-    file.fieldname === "additionalImage"
-  ) {
-    uploadPath = path.join(__dirname, "../uploads/images");
-  } else if (file.fieldname === "video") {
-    uploadPath = path.join(__dirname, "../uploads/videos");
-  }
+    if (
+      file.fieldname === "featuredImage" ||
+      file.fieldname === "additionalImage"
+    ) {
+      uploadPath = path.join(__dirname, "../uploads/images");
+    } else if (file.fieldname === "video") {
+      uploadPath = path.join(__dirname, "../uploads/videos");
+    }
 
-  //  Error handling if field is unrecognized
-  if (!uploadPath) {
-    return cb(new Error(`Invalid upload field: ${file.fieldname}`));
-  }
+    //  Error handling if field is unrecognized
+    if (!uploadPath) {
+      return cb(new Error(`Invalid upload field: ${file.fieldname}`));
+    }
 
-  // Create directory if it doesn't exist
-  if (!fs.existsSync(uploadPath)) {
-    fs.mkdirSync(uploadPath, { recursive: true });
-  }
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
 
-  cb(null, uploadPath);
-},
- filename: function (req, file, cb) {
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(
       null,
-      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname),
     );
   },
 });
@@ -64,21 +64,38 @@ newsController.createNews = async (req, res) => {
     uploadFields(req, res, async function (err) {
       if (err) {
         console.error("Upload error:", err);
-        if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+        if (
+          err instanceof multer.MulterError &&
+          err.code === "LIMIT_FILE_SIZE"
+        ) {
           return res.error(
             httpStatus.BAD_REQUEST,
             false,
             "File too large",
-            "Maximum file size is 100MB. Please upload a smaller file."
+            "Maximum file size is 100MB. Please upload a smaller file.",
           );
         }
-        return res.error(httpStatus.BAD_REQUEST, false, "Error uploading file", err.message);
+        return res.error(
+          httpStatus.BAD_REQUEST,
+          false,
+          "Error uploading file",
+          err.message,
+        );
       }
 
       try {
-        let { title, content, category, contentType, youtubeUrl, state, district } = req.body;
+        let {
+          title,
+          content,
+          category,
+          contentType,
+          youtubeUrl,
+          state,
+          district,
+        } = req.body;
 
-        const clean = (value) => (value ? value.replace(/^["'](.*)["']$/, "$1") : value);
+        const clean = (value) =>
+          value ? value.replace(/^["'](.*)["']$/, "$1") : value;
         title = clean(title);
         content = clean(content);
         category = clean(category);
@@ -101,7 +118,9 @@ newsController.createNews = async (req, res) => {
         };
 
         if (req.files?.additionalImage) {
-          const images = req.files.additionalImage.map((img) => `/uploads/images/${img.filename}`);
+          const images = req.files.additionalImage.map(
+            (img) => `/uploads/images/${img.filename}`,
+          );
           // Ensure images is a valid array before assignment
           newsData.additionalImage = Array.isArray(images) ? images : [];
         }
@@ -116,7 +135,7 @@ newsController.createNews = async (req, res) => {
           if (youtubeUrl) {
             newsData.youtubeUrl = youtubeUrl;
             const videoId = youtubeUrl.match(
-              /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
+              /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/,
             );
             if (videoId?.[1]) {
               newsData.thumbnailUrl = `https://img.youtube.com/vi/${videoId[1]}/hqdefault.jpg`;
@@ -128,11 +147,17 @@ newsController.createNews = async (req, res) => {
         }
 
         if (!title || !content || !category) {
-          return res.error(httpStatus.BAD_REQUEST, false, "Title, content, and category are required");
+          return res.error(
+            httpStatus.BAD_REQUEST,
+            false,
+            "Title, content, and category are required",
+          );
         }
 
         const news = await News.create(newsData);
-        const journalist = await User.findByPk(journalistId, { attributes: ["username"] });
+        const journalist = await User.findByPk(journalistId, {
+          attributes: ["username"],
+        });
 
         try {
           await notificationService.sendToRole(
@@ -142,13 +167,12 @@ newsController.createNews = async (req, res) => {
             {
               type: "new_article",
               newsId: news.id.toString(),
-            }
+            },
           );
         } catch (notifError) {
           console.error("Notification error:", notifError);
         }
 
-        
         const newsPlain = news.get({ plain: true });
 
         if (typeof newsPlain.additionalImage === "string") {
@@ -161,15 +185,28 @@ newsController.createNews = async (req, res) => {
           newsPlain.additionalImage = [];
         }
 
-        return res.success(httpStatus.CREATED, true, "News created successfully", newsPlain);
+        return res.success(
+          httpStatus.CREATED,
+          true,
+          "News created successfully",
+          newsPlain,
+        );
       } catch (error) {
         console.error("Create news error:", error);
-        return res.error(httpStatus.INTERNAL_SERVER_ERROR, false, "Error creating news: " + error.message);
+        return res.error(
+          httpStatus.INTERNAL_SERVER_ERROR,
+          false,
+          "Error creating news: " + error.message,
+        );
       }
     });
   } catch (error) {
     console.error("Create news outer error:", error);
-    return res.error(httpStatus.INTERNAL_SERVER_ERROR, false, "Error processing request: " + error.message);
+    return res.error(
+      httpStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Error processing request: " + error.message,
+    );
   }
 };
 
@@ -193,7 +230,7 @@ newsController.getMyNews = async (req, res) => {
       httpStatus.OK,
       true,
       "Your news fetched successfully",
-      news
+      news,
     );
   } catch (error) {
     console.error("Fetch my news error:", error);
@@ -201,7 +238,7 @@ newsController.getMyNews = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error fetching your news",
-      error
+      error,
     );
   }
 };
@@ -244,7 +281,7 @@ newsController.getPublicNews = async (req, res) => {
         "updatedAt",
         "state",
         "district",
-        "additionalImage"
+        "additionalImage",
       ],
       order: [["createdAt", "DESC"]],
     });
@@ -253,7 +290,7 @@ newsController.getPublicNews = async (req, res) => {
       httpStatus.OK,
       true,
       "Public news fetched successfully",
-      news
+      news,
     );
   } catch (error) {
     console.error("Get public news error:", error);
@@ -261,7 +298,7 @@ newsController.getPublicNews = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error fetching public news",
-      error
+      error,
     );
   }
 };
@@ -284,7 +321,7 @@ newsController.getPendingNews = async (req, res) => {
       httpStatus.OK,
       true,
       "Pending news fetched successfully",
-      pendingNews
+      pendingNews,
     );
   } catch (error) {
     console.error("Fetch pending news error:", error);
@@ -292,7 +329,7 @@ newsController.getPendingNews = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error fetching pending news",
-      error
+      error,
     );
   }
 };
@@ -338,7 +375,7 @@ newsController.getMyPendingNews = async (req, res) => {
       httpStatus.OK,
       true,
       "Your pending news fetched successfully",
-      pendingNews
+      pendingNews,
     );
   } catch (error) {
     console.error("Fetch journalist pending news error:", error);
@@ -346,7 +383,7 @@ newsController.getMyPendingNews = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error fetching your pending news",
-      error
+      error,
     );
   }
 };
@@ -397,7 +434,7 @@ newsController.getMyApprovedNews = async (req, res) => {
       httpStatus.OK,
       true,
       "Your approved news fetched successfully",
-      approvedNews
+      approvedNews,
     );
   } catch (error) {
     console.error("Fetch journalist approved news error:", error);
@@ -405,7 +442,7 @@ newsController.getMyApprovedNews = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error fetching your approved news",
-      error
+      error,
     );
   }
 };
@@ -455,7 +492,7 @@ newsController.getMyRejectedNews = async (req, res) => {
       httpStatus.OK,
       true,
       "Your rejected news fetched successfully",
-      rejectedNews
+      rejectedNews,
     );
   } catch (error) {
     console.error("Fetch journalist rejected news error:", error);
@@ -463,7 +500,7 @@ newsController.getMyRejectedNews = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error fetching your rejected news",
-      error
+      error,
     );
   }
 };
@@ -479,7 +516,7 @@ newsController.updateNewsStatus = async (req, res) => {
       return res.error(
         httpStatus.BAD_REQUEST,
         false,
-        "Invalid status. Use 'approved' or 'rejected'"
+        "Invalid status. Use 'approved' or 'rejected'",
       );
     }
 
@@ -510,7 +547,7 @@ newsController.updateNewsStatus = async (req, res) => {
           {
             type: "article_approved",
             newsId: news.id.toString(),
-          }
+          },
         );
 
         // Notify all audience members about new article
@@ -521,7 +558,7 @@ newsController.updateNewsStatus = async (req, res) => {
           {
             type: "new_published_article",
             newsId: news.id.toString(),
-          }
+          },
         );
 
         // Send to news_updates topic (for FCM)
@@ -533,7 +570,7 @@ newsController.updateNewsStatus = async (req, res) => {
             {
               type: "new_published_article",
               newsId: news.id.toString(),
-            }
+            },
           );
 
           // If the article has state/district info, send to those topics too
@@ -549,7 +586,7 @@ newsController.updateNewsStatus = async (req, res) => {
                 type: "state_news",
                 newsId: news.id.toString(),
                 state: news.state,
-              }
+              },
             );
           }
 
@@ -565,7 +602,7 @@ newsController.updateNewsStatus = async (req, res) => {
                 type: "district_news",
                 newsId: news.id.toString(),
                 district: news.district,
-              }
+              },
             );
           }
 
@@ -582,7 +619,7 @@ newsController.updateNewsStatus = async (req, res) => {
                 type: "category_news",
                 newsId: news.id.toString(),
                 category: news.category,
-              }
+              },
             );
           }
 
@@ -612,16 +649,16 @@ newsController.updateNewsStatus = async (req, res) => {
               {
                 type: "new_published_article",
                 newsId: news.id.toString(),
-              }
+              },
             );
             console.log(
-              `Notification sent to ${userIds.length} users with FCM tokens`
+              `Notification sent to ${userIds.length} users with FCM tokens`,
             );
           }
         } catch (userNotifError) {
           console.error(
             "Error sending notifications to all users:",
-            userNotifError
+            userNotifError,
           );
           // Continue execution even if notification fails
         }
@@ -646,7 +683,7 @@ newsController.updateNewsStatus = async (req, res) => {
       httpStatus.OK,
       true,
       `News ${status} successfully`,
-      news
+      news,
     );
   } catch (error) {
     console.error("Update news status error:", error);
@@ -654,7 +691,7 @@ newsController.updateNewsStatus = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error updating news status",
-      error
+      error,
     );
   }
 };
@@ -690,19 +727,19 @@ newsController.getNewsByCategory = async (req, res) => {
         include: [
           [
             sequelize.literal(
-              "(SELECT COUNT(*) FROM likes WHERE likes.newsId = news.id)"
+              "(SELECT COUNT(*) FROM likes WHERE likes.newsId = news.id)",
             ),
             "likesCount",
           ],
           [
             sequelize.literal(
-              "(SELECT COUNT(*) FROM comments WHERE comments.newsId = news.id)"
+              "(SELECT COUNT(*) FROM comments WHERE comments.newsId = news.id)",
             ),
             "commentsCount",
           ],
           [
             sequelize.literal(
-              "(SELECT COUNT(*) FROM shares WHERE shares.newsId = news.id)"
+              "(SELECT COUNT(*) FROM shares WHERE shares.newsId = news.id)",
             ),
             "sharesCount",
           ],
@@ -714,7 +751,7 @@ newsController.getNewsByCategory = async (req, res) => {
       httpStatus.OK,
       true,
       `${category} news fetched successfully`,
-      news
+      news,
     );
   } catch (error) {
     console.error("fetch category news error:", error);
@@ -722,7 +759,7 @@ newsController.getNewsByCategory = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error fetching category news",
-      error
+      error,
     );
   }
 };
@@ -743,19 +780,19 @@ newsController.getTrendingNews = async (req, res) => {
         include: [
           [
             sequelize.literal(
-              "(SELECT COUNT(*) FROM likes WHERE likes.newsId = news.id)"
+              "(SELECT COUNT(*) FROM likes WHERE likes.newsId = news.id)",
             ),
             "likesCount",
           ],
           [
             sequelize.literal(
-              "(SELECT COUNT(*) FROM comments WHERE comments.newsId = news.id)"
+              "(SELECT COUNT(*) FROM comments WHERE comments.newsId = news.id)",
             ),
             "commentsCount",
           ],
           [
             sequelize.literal(
-              "(SELECT COUNT(*) FROM shares WHERE shares.newsId = news.id)"
+              "(SELECT COUNT(*) FROM shares WHERE shares.newsId = news.id)",
             ),
             "sharesCount",
           ],
@@ -769,7 +806,7 @@ newsController.getTrendingNews = async (req, res) => {
       httpStatus.OK,
       true,
       "Trending news fetched successfully",
-      trendingNews
+      trendingNews,
     );
   } catch (error) {
     console.error("Fetch trending news error:", error);
@@ -777,7 +814,7 @@ newsController.getTrendingNews = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error fetching trending news",
-      error
+      error,
     );
   }
 };
@@ -823,7 +860,7 @@ newsController.getRejectedNews = async (req, res) => {
       httpStatus.OK,
       true,
       "Rejected news fetched successfully",
-      rejectedNews
+      rejectedNews,
     );
   } catch (error) {
     console.error("Fetch rejected news error:", error);
@@ -831,71 +868,82 @@ newsController.getRejectedNews = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error fetching rejected news",
-      error
+      error,
     );
   }
 };
 
 // Get editor's approved news (news approved by the logged-in editor)
 newsController.getEditorApprovedNews = async (req, res) => {
-    try {
-        const editorId = req.user.id;
+  try {
+    const editorId = req.user.id;
 
-        // Date filter: Last 7 days
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // Date filter: Last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        // Pagination
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const offset = (page - 1) * limit;
+    // Pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
 
-        const approvedNews = await News.findAll({
-            where: { 
-                editorId,
-                status: 'approved',
-                updatedAt: {
-                    [Op.gte]: sevenDaysAgo
-                }
-            },
-            include: [
-                {
-                    model: User,
-                    as: 'journalist',
-                    attributes: ['id', 'username']
-                },
-                {
-                    model: User,
-                    as: 'editor',
-                    attributes: ['id', 'username']
-                }
-            ],
-            attributes: [
-                'id', 'title', 'content', 'category', 'status',
-                'contentType', 'youtubeUrl', 'videoPath',
-                'featuredImage', 'thumbnailUrl', 'views',
-                'createdAt', 'updatedAt', 'state', 'district'
-            ],
-            order: [['updatedAt', 'DESC']],
-            limit,
-            offset
-        });
+    const approvedNews = await News.findAll({
+      where: {
+        editorId,
+        status: "approved",
+        updatedAt: {
+          [Op.gte]: sevenDaysAgo,
+        },
+      },
+      include: [
+        {
+          model: User,
+          as: "journalist",
+          attributes: ["id", "username"],
+        },
+        {
+          model: User,
+          as: "editor",
+          attributes: ["id", "username"],
+        },
+      ],
+      attributes: [
+        "id",
+        "title",
+        "content",
+        "category",
+        "status",
+        "contentType",
+        "youtubeUrl",
+        "videoPath",
+        "featuredImage",
+        "thumbnailUrl",
+        "views",
+        "createdAt",
+        "updatedAt",
+        "state",
+        "district",
+      ],
+      order: [["updatedAt", "DESC"]],
+      limit,
+      offset,
+    });
 
-        return res.success(
-            httpStatus.OK,
-            true,
-            "News approved by you (last 7 days) fetched successfully",
-            approvedNews
-        );
-    } catch (error) {
-        console.error('Fetch editor approved news error:', error);
-        return res.error(
-            httpStatus.INTERNAL_SERVER_ERROR,
-            false,
-            "Error fetching news approved by you",
-            error
-        );
-    }
+    return res.success(
+      httpStatus.OK,
+      true,
+      "News approved by you (last 7 days) fetched successfully",
+      approvedNews,
+    );
+  } catch (error) {
+    console.error("Fetch editor approved news error:", error);
+    return res.error(
+      httpStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Error fetching news approved by you",
+      error,
+    );
+  }
 };
 
 // Update the News .................................................
@@ -925,7 +973,7 @@ newsController.updateNews = async (req, res) => {
       return res.error(
         httpStatus.NOT_FOUND,
         false,
-        "News article not found or you don't have permission to edit it"
+        "News article not found or you don't have permission to edit it",
       );
     }
 
@@ -934,7 +982,7 @@ newsController.updateNews = async (req, res) => {
       return res.error(
         httpStatus.FORBIDDEN,
         false,
-        "Cannot edit news that has already been approved by an editor"
+        "Cannot edit news that has already been approved by an editor",
       );
     }
 
@@ -949,7 +997,7 @@ newsController.updateNews = async (req, res) => {
         return res.error(
           httpStatus.BAD_REQUEST,
           false,
-          "Error uploading file: " + err.message
+          "Error uploading file: " + err.message,
         );
       }
 
@@ -1008,7 +1056,7 @@ newsController.updateNews = async (req, res) => {
               const oldImagePath = path.join(
                 __dirname,
                 "..",
-                news.featuredImage
+                news.featuredImage,
               );
               if (fs.existsSync(oldImagePath)) {
                 fs.unlinkSync(oldImagePath);
@@ -1024,7 +1072,7 @@ newsController.updateNews = async (req, res) => {
             newsData.youtubeUrl = youtubeUrl;
             // Extract YouTube thumbnail if available
             const videoId = youtubeUrl.match(
-              /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
+              /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/,
             );
             if (videoId && videoId[1]) {
               newsData.thumbnailUrl = `https://img.youtube.com/vi/${videoId[1]}/hqdefault.jpg`;
@@ -1088,13 +1136,13 @@ newsController.updateNews = async (req, res) => {
           httpStatus.OK,
           true,
           "News updated successfully",
-          updatedNews
+          updatedNews,
         );
       } catch (error) {
         return res.error(
           httpStatus.INTERNAL_SERVER_ERROR,
           false,
-          "Error updating news: " + error.message
+          "Error updating news: " + error.message,
         );
       }
     });
@@ -1102,7 +1150,7 @@ newsController.updateNews = async (req, res) => {
     return res.error(
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
-      "Error processing request: " + error.message
+      "Error processing request: " + error.message,
     );
   }
 };
@@ -1119,7 +1167,7 @@ newsController.FeaturedNews = async (req, res) => {
       return res.error(
         httpStatus.FORBIDDEN,
         false,
-        "Only editors and admins can feature news"
+        "Only editors and admins can feature news",
       );
     }
 
@@ -1135,7 +1183,7 @@ newsController.FeaturedNews = async (req, res) => {
       return res.error(
         httpStatus.BAD_REQUEST,
         false,
-        "Only approved news can be featured"
+        "Only approved news can be featured",
       );
     }
 
@@ -1175,14 +1223,14 @@ newsController.FeaturedNews = async (req, res) => {
       `News ${
         isFeatured ? "marked as" : "removed from"
       } featured successfully by ${userRole}`,
-      updatedNews
+      updatedNews,
     );
   } catch (error) {
     return res.error(
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error updating news featured status",
-      error.message
+      error.message,
     );
   }
 };
@@ -1229,24 +1277,24 @@ newsController.getFeaturedNews = async (req, res) => {
         "isFeatured",
         "state",
         "district",
-        "additionalImage"
+        "additionalImage",
       ],
-      order: [["updatedAt", "DESC"]], 
-      limit:50
+      order: [["updatedAt", "DESC"]],
+      limit: 50,
     });
 
     return res.success(
       httpStatus.OK,
       true,
       "Featured news fetched successfully",
-      featuredNews
+      featuredNews,
     );
   } catch (error) {
     return res.error(
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error fetching featured news",
-      error.message
+      error.message,
     );
   }
 };
@@ -1260,7 +1308,7 @@ newsController.getNewsByState = async (req, res) => {
       return res.error(
         httpStatus.BAD_REQUEST,
         false,
-        "State parameter is required"
+        "State parameter is required",
       );
     }
 
@@ -1300,19 +1348,19 @@ newsController.getNewsByState = async (req, res) => {
         "additionalImage",
         [
           sequelize.literal(
-            "(SELECT COUNT(*) FROM likes WHERE likes.newsId = news.id)"
+            "(SELECT COUNT(*) FROM likes WHERE likes.newsId = news.id)",
           ),
           "likesCount",
         ],
         [
           sequelize.literal(
-            "(SELECT COUNT(*) FROM comments WHERE comments.newsId = news.id)"
+            "(SELECT COUNT(*) FROM comments WHERE comments.newsId = news.id)",
           ),
           "commentsCount",
         ],
         [
           sequelize.literal(
-            "(SELECT COUNT(*) FROM shares WHERE shares.newsId = news.id)"
+            "(SELECT COUNT(*) FROM shares WHERE shares.newsId = news.id)",
           ),
           "sharesCount",
         ],
@@ -1324,7 +1372,7 @@ newsController.getNewsByState = async (req, res) => {
       httpStatus.OK,
       true,
       `News from ${state} fetched successfully`,
-      news
+      news,
     );
   } catch (error) {
     console.error("Fetch state news error:", error);
@@ -1332,7 +1380,7 @@ newsController.getNewsByState = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error fetching news by state",
-      error.message
+      error.message,
     );
   }
 };
@@ -1358,7 +1406,7 @@ newsController.deleteNews = async (req, res) => {
       return res.error(
         httpStatus.FORBIDDEN,
         false,
-        "You don't have permission to delete this news article"
+        "You don't have permission to delete this news article",
       );
     }
 
@@ -1413,7 +1461,7 @@ newsController.deleteNews = async (req, res) => {
     return res.success(
       httpStatus.OK,
       true,
-      "News article deleted successfully"
+      "News article deleted successfully",
     );
   } catch (error) {
     console.error("Delete news error:", error);
@@ -1421,7 +1469,7 @@ newsController.deleteNews = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error deleting news article",
-      error.message
+      error.message,
     );
   }
 };
@@ -1442,7 +1490,7 @@ newsController.adminCreateNews = async (req, res) => {
         return res.error(
           httpStatus.BAD_REQUEST,
           false,
-          "Error uploading file: " + err.message
+          "Error uploading file: " + err.message,
         );
       }
 
@@ -1503,7 +1551,9 @@ newsController.adminCreateNews = async (req, res) => {
 
         // Handle additionalImage uploads (added this section)
         if (req.files?.additionalImage) {
-          const images = req.files.additionalImage.map((img) => `/uploads/images/${img.filename}`);
+          const images = req.files.additionalImage.map(
+            (img) => `/uploads/images/${img.filename}`,
+          );
           // Ensure images is a valid array before assignment
           newsData.additionalImage = Array.isArray(images) ? images : [];
         }
@@ -1524,7 +1574,7 @@ newsController.adminCreateNews = async (req, res) => {
             newsData.youtubeUrl = youtubeUrl;
             // Extract YouTube thumbnail if available
             const videoId = youtubeUrl.match(
-              /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
+              /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/,
             );
             if (videoId && videoId[1]) {
               newsData.thumbnailUrl = `https://img.youtube.com/vi/${videoId[1]}/hqdefault.jpg`;
@@ -1540,7 +1590,7 @@ newsController.adminCreateNews = async (req, res) => {
           return res.error(
             httpStatus.BAD_REQUEST,
             false,
-            "Title, content, and category are required"
+            "Title, content, and category are required",
           );
         }
 
@@ -1564,14 +1614,14 @@ newsController.adminCreateNews = async (req, res) => {
           httpStatus.CREATED,
           true,
           "News created successfully by admin",
-          newsPlain
+          newsPlain,
         );
       } catch (error) {
         console.error("Admin create news error:", error);
         return res.error(
           httpStatus.INTERNAL_SERVER_ERROR,
           false,
-          "Error creating news: " + error.message
+          "Error creating news: " + error.message,
         );
       }
     });
@@ -1580,7 +1630,7 @@ newsController.adminCreateNews = async (req, res) => {
     return res.error(
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
-      "Error processing request: " + error.message
+      "Error processing request: " + error.message,
     );
   }
 };
@@ -1626,7 +1676,7 @@ newsController.getAdminPendingNews = async (req, res) => {
       httpStatus.OK,
       true,
       "Latest pending posts fetched successfully",
-      response
+      response,
     );
   } catch (error) {
     console.error("Fetch admin pending news error:", error);
@@ -1634,7 +1684,7 @@ newsController.getAdminPendingNews = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error fetching admin pending news",
-      error
+      error,
     );
   }
 };
@@ -1650,7 +1700,7 @@ newsController.adminApproveNews = async (req, res) => {
       return res.error(
         httpStatus.BAD_REQUEST,
         false,
-        "Invalid status. Use 'approved' or 'rejected'"
+        "Invalid status. Use 'approved' or 'rejected'",
       );
     }
 
@@ -1673,7 +1723,7 @@ newsController.adminApproveNews = async (req, res) => {
       return res.error(
         httpStatus.NOT_FOUND,
         false,
-        "News not found or not eligible for approval/rejection"
+        "News not found or not eligible for approval/rejection",
       );
     }
 
@@ -1698,7 +1748,7 @@ newsController.adminApproveNews = async (req, res) => {
           {
             type: "new_published_article",
             newsId: news.id.toString(),
-          }
+          },
         );
 
         // If the news has a journalist, notify them about approval
@@ -1710,7 +1760,7 @@ newsController.adminApproveNews = async (req, res) => {
             {
               type: "article_approved",
               newsId: news.id.toString(),
-            }
+            },
           );
         }
       } else if (status === "rejected" && news.journalistId) {
@@ -1733,7 +1783,7 @@ newsController.adminApproveNews = async (req, res) => {
       httpStatus.OK,
       true,
       `News ${status} successfully by admin`,
-      news
+      news,
     );
   } catch (error) {
     console.error("Admin approve/reject news error:", error);
@@ -1741,7 +1791,7 @@ newsController.adminApproveNews = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error processing news",
-      error
+      error,
     );
   }
 };
@@ -1755,7 +1805,7 @@ newsController.getNewsByStateAndDistrict = async (req, res) => {
       return res.error(
         httpStatus.BAD_REQUEST,
         false,
-        "State and district parameters are required"
+        "State and district parameters are required",
       );
     }
 
@@ -1796,19 +1846,19 @@ newsController.getNewsByStateAndDistrict = async (req, res) => {
         "additionalImage",
         [
           sequelize.literal(
-            "(SELECT COUNT(*) FROM likes WHERE likes.newsId = news.id)"
+            "(SELECT COUNT(*) FROM likes WHERE likes.newsId = news.id)",
           ),
           "likesCount",
         ],
         [
           sequelize.literal(
-            "(SELECT COUNT(*) FROM comments WHERE comments.newsId = news.id)"
+            "(SELECT COUNT(*) FROM comments WHERE comments.newsId = news.id)",
           ),
           "commentsCount",
         ],
         [
           sequelize.literal(
-            "(SELECT COUNT(*) FROM shares WHERE shares.newsId = news.id)"
+            "(SELECT COUNT(*) FROM shares WHERE shares.newsId = news.id)",
           ),
           "sharesCount",
         ],
@@ -1820,7 +1870,7 @@ newsController.getNewsByStateAndDistrict = async (req, res) => {
       httpStatus.OK,
       true,
       `News from ${district}, ${state} fetched successfully`,
-      news
+      news,
     );
   } catch (error) {
     console.error("Fetch state and district news error:", error);
@@ -1828,7 +1878,7 @@ newsController.getNewsByStateAndDistrict = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error fetching news by state and district",
-      error.message
+      error.message,
     );
   }
 };
@@ -1845,7 +1895,7 @@ newsController.reEditApprovedNews = async (req, res) => {
       return res.error(
         httpStatus.FORBIDDEN,
         false,
-        "Only editors and admins can re-edit approved news"
+        "Only editors and admins can re-edit approved news",
       );
     }
 
@@ -1861,7 +1911,7 @@ newsController.reEditApprovedNews = async (req, res) => {
       return res.error(
         httpStatus.NOT_FOUND,
         false,
-        "Approved news article not found"
+        "Approved news article not found",
       );
     }
 
@@ -1926,7 +1976,7 @@ newsController.reEditApprovedNews = async (req, res) => {
           {
             type: "article_re_edited",
             newsId: news.id.toString(),
-          }
+          },
         );
       } catch (notifError) {
         console.error("Notification error:", notifError);
@@ -1938,7 +1988,7 @@ newsController.reEditApprovedNews = async (req, res) => {
       httpStatus.OK,
       true,
       "Approved news re-edited successfully",
-      updatedNews
+      updatedNews,
     );
   } catch (error) {
     console.error("Re-edit approved news error:", error);
@@ -1946,7 +1996,7 @@ newsController.reEditApprovedNews = async (req, res) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error re-editing approved news",
-      error.message
+      error.message,
     );
   }
 };
@@ -1977,7 +2027,7 @@ newsController.adminEditPendingNews = async (req, res) => {
       return res.error(
         httpStatus.BAD_REQUEST,
         false,
-        "Only pending news posts can be edited by admin"
+        "Only pending news posts can be edited by admin",
       );
     }
 
@@ -1985,7 +2035,7 @@ newsController.adminEditPendingNews = async (req, res) => {
     const uploadFields = upload.fields([
       { name: "featuredImage", maxCount: 1 },
       { name: "video", maxCount: 1 },
-      { name:"additionalImage",maxCount:6}
+      { name: "additionalImage", maxCount: 6 },
     ]);
 
     uploadFields(req, res, async function (err) {
@@ -1993,7 +2043,7 @@ newsController.adminEditPendingNews = async (req, res) => {
         return res.error(
           httpStatus.BAD_REQUEST,
           false,
-          "Error uploading file: " + err.message
+          "Error uploading file: " + err.message,
         );
       }
 
@@ -2038,18 +2088,21 @@ newsController.adminEditPendingNews = async (req, res) => {
         };
 
         //handle additional images upload
-        if(req.files?.additionalImage){
+        if (req.files?.additionalImage) {
           //delete old additional images
-          if(news.additionalImage && Array.isArray(news.additionalImage)){
-            news.additionalImage.forEach(imgPath =>{ const oldImagePath =path.join(__dirname,"..",imgPath);
-              if (fs.existsSync(oldImagePath)){
+          if (news.additionalImage && Array.isArray(news.additionalImage)) {
+            news.additionalImage.forEach((imgPath) => {
+              const oldImagePath = path.join(__dirname, "..", imgPath);
+              if (fs.existsSync(oldImagePath)) {
                 fs.unlinkSync(oldImagePath);
               }
-            })
+            });
           }
 
-          const images = req.files.additionalImage.map((img)=>`/uploads/images/${img.filename}`);
-          newsData.additionalImage =Array.isArray(images) ? images : [];
+          const images = req.files.additionalImage.map(
+            (img) => `/uploads/images/${img.filename}`,
+          );
+          newsData.additionalImage = Array.isArray(images) ? images : [];
         }
 
         // Handle content type specific fields
@@ -2067,7 +2120,7 @@ newsController.adminEditPendingNews = async (req, res) => {
               const oldImagePath = path.join(
                 __dirname,
                 "..",
-                news.featuredImage
+                news.featuredImage,
               );
               if (fs.existsSync(oldImagePath)) {
                 fs.unlinkSync(oldImagePath);
@@ -2083,7 +2136,7 @@ newsController.adminEditPendingNews = async (req, res) => {
             newsData.youtubeUrl = youtubeUrl;
             // Extract YouTube thumbnail if available
             const videoId = youtubeUrl.match(
-              /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
+              /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/,
             );
             if (videoId && videoId[1]) {
               newsData.thumbnailUrl = `https://img.youtube.com/vi/${videoId[1]}/hqdefault.jpg`;
@@ -2121,7 +2174,6 @@ newsController.adminEditPendingNews = async (req, res) => {
           ],
         });
 
-        
         // Handle additionalImage parsing for response
         const newsPlain = updatedNews.get({ plain: true });
         if (typeof newsPlain.additionalImage === "string") {
@@ -2148,7 +2200,7 @@ newsController.adminEditPendingNews = async (req, res) => {
               {
                 type: "admin_edited_article",
                 newsId: updatedNews.id.toString(),
-              }
+              },
             );
           }
         } catch (notifError) {
@@ -2160,14 +2212,14 @@ newsController.adminEditPendingNews = async (req, res) => {
           httpStatus.OK,
           true,
           "News post edited successfully by admin",
-          updatedNews
+          updatedNews,
         );
       } catch (error) {
         console.error("Admin edit news error:", error);
         return res.error(
           httpStatus.INTERNAL_SERVER_ERROR,
           false,
-          "Error editing news: " + error.message
+          "Error editing news: " + error.message,
         );
       }
     });
@@ -2176,7 +2228,7 @@ newsController.adminEditPendingNews = async (req, res) => {
     return res.error(
       httpStatus.INTERNAL_SERVER_ERROR,
       false,
-      "Error processing request: " + error.message
+      "Error processing request: " + error.message,
     );
   }
 };

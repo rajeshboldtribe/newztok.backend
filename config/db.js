@@ -12,7 +12,7 @@ const sequelize = new Sequelize(
     logging: (msg) => {
       console.log(`Sequelize: ${msg}`);
     },
-  }
+  },
 );
 
 sequelize

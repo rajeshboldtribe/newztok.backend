@@ -1,39 +1,127 @@
-const router = require('express').Router();
-const newsController = require('../controllers/news.controller');
-const { checkUserAuth, checkRole } = require('../middlewares/auth.middleware');
+const router = require("express").Router();
+const newsController = require("../controllers/news.controller");
+const { checkUserAuth, checkRole } = require("../middlewares/auth.middleware");
 
 // Public routes
-router.get('/public', newsController.getPublicNews);
-router.get('/category/:category', newsController.getNewsByCategory);
+router.get("/public", newsController.getPublicNews);
+router.get("/category/:category", newsController.getNewsByCategory);
 
 // Journalist routes
-router.post('/create', checkUserAuth, checkRole(['journalist','editor',]), newsController.createNews);
-router.get('/my-news', checkUserAuth, checkRole('journalist'), newsController.getMyNews);
-router.get('/my-pending-news', checkUserAuth, checkRole('journalist'), newsController.getMyPendingNews);
-router.get('/my-rejected-news', checkUserAuth, checkRole('journalist'), newsController.getMyRejectedNews);
-router.get('/my-approved-news', checkUserAuth, checkRole('journalist'), newsController.getMyApprovedNews);
-router.put('/:newsId', checkUserAuth, checkRole(['journalist', 'editor']), newsController.updateNews);
+router.post(
+  "/create",
+  checkUserAuth,
+  checkRole(["journalist", "editor"]),
+  newsController.createNews,
+);
+router.get(
+  "/my-news",
+  checkUserAuth,
+  checkRole("journalist"),
+  newsController.getMyNews,
+);
+router.get(
+  "/my-pending-news",
+  checkUserAuth,
+  checkRole("journalist"),
+  newsController.getMyPendingNews,
+);
+router.get(
+  "/my-rejected-news",
+  checkUserAuth,
+  checkRole("journalist"),
+  newsController.getMyRejectedNews,
+);
+router.get(
+  "/my-approved-news",
+  checkUserAuth,
+  checkRole("journalist"),
+  newsController.getMyApprovedNews,
+);
+router.put(
+  "/:newsId",
+  checkUserAuth,
+  checkRole(["journalist", "editor"]),
+  newsController.updateNews,
+);
 
 // Editor routes
-router.get('/pending', checkUserAuth, checkRole('editor'), newsController.getPendingNews);
-router.get('/rejected', checkUserAuth, checkRole('editor'), newsController.getRejectedNews);
-router.get('/approved-by-me', checkUserAuth, checkRole('editor'), newsController.getEditorApprovedNews);
-router.put('/:newsId/status', checkUserAuth, checkRole('editor'), newsController.updateNewsStatus);
-router.put('/featured/:newsId', checkUserAuth, checkRole(['editor', 'admin']), newsController.FeaturedNews);
-router.get('/featured', newsController.getFeaturedNews);
+router.get(
+  "/pending",
+  checkUserAuth,
+  checkRole("editor"),
+  newsController.getPendingNews,
+);
+router.get(
+  "/rejected",
+  checkUserAuth,
+  checkRole("editor"),
+  newsController.getRejectedNews,
+);
+router.get(
+  "/approved-by-me",
+  checkUserAuth,
+  checkRole("editor"),
+  newsController.getEditorApprovedNews,
+);
+router.put(
+  "/:newsId/status",
+  checkUserAuth,
+  checkRole("editor"),
+  newsController.updateNewsStatus,
+);
+router.put(
+  "/featured/:newsId",
+  checkUserAuth,
+  checkRole(["editor", "admin"]),
+  newsController.FeaturedNews,
+);
+router.get("/featured", newsController.getFeaturedNews);
 //trending news route
-router.get('/trending',newsController.getTrendingNews);
+router.get("/trending", newsController.getTrendingNews);
 
 //state,district news route
-router.get('/state/:state',newsController.getNewsByState);
-router.get('/location/:state/:district', newsController.getNewsByStateAndDistrict);
+router.get("/state/:state", newsController.getNewsByState);
+router.get(
+  "/location/:state/:district",
+  newsController.getNewsByStateAndDistrict,
+);
 // Delete news route (for editors and admins)
-router.delete('/delete/:newsId', checkUserAuth, checkRole(['editor', 'admin']), newsController.deleteNews);
+router.delete(
+  "/delete/:newsId",
+  checkUserAuth,
+  checkRole(["editor", "admin"]),
+  newsController.deleteNews,
+);
 // Admin news routes
-router.post('/admin/create', checkUserAuth, checkRole('admin'), newsController.adminCreateNews);
-router.get('/admin/pending', checkUserAuth, checkRole('admin'), newsController.getAdminPendingNews);
-router.put('/admin/news/status/:newsId', checkUserAuth, checkRole('admin'), newsController.adminApproveNews);
-router.put('/re-edit/:newsId', checkUserAuth, checkRole(['editor', 'admin']), newsController.reEditApprovedNews);
-router.put('/admin/edit/:newsId', checkUserAuth, checkRole('admin'), newsController.adminEditPendingNews);
+router.post(
+  "/admin/create",
+  checkUserAuth,
+  checkRole("admin"),
+  newsController.adminCreateNews,
+);
+router.get(
+  "/admin/pending",
+  checkUserAuth,
+  checkRole("admin"),
+  newsController.getAdminPendingNews,
+);
+router.put(
+  "/admin/news/status/:newsId",
+  checkUserAuth,
+  checkRole("admin"),
+  newsController.adminApproveNews,
+);
+router.put(
+  "/re-edit/:newsId",
+  checkUserAuth,
+  checkRole(["editor", "admin"]),
+  newsController.reEditApprovedNews,
+);
+router.put(
+  "/admin/edit/:newsId",
+  checkUserAuth,
+  checkRole("admin"),
+  newsController.adminEditPendingNews,
+);
 
 module.exports = router;

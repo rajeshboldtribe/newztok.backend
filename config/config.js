@@ -1,25 +1,25 @@
 module.exports = {
   development: {
-    username: 'root',
+    username: "root",
     password: null,
-    database: 'newstalk',
-    host: '127.0.0.1',
+    database: "newstalk",
+    host: "127.0.0.1",
     port: 3306,
-    dialect: 'mysql',
+    dialect: "mysql",
   },
   test: {
-    username: 'root',
+    username: "root",
     password: null,
-    database: 'database_test',
-    host: '127.0.0.1',
-    dialect: 'mysql',
+    database: "database_test",
+    host: "127.0.0.1",
+    dialect: "mysql",
   },
   production: {
-    username: 'root',
+    username: "root",
     password: null,
-    database: 'newstalk',
-    host: '127.0.0.1',
+    database: "newstalk",
+    host: "127.0.0.1",
     port: 3306,
-    dialect: 'mysql',
-  }
+    dialect: "mysql",
+  },
 };
